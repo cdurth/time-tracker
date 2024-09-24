@@ -1,0 +1,92 @@
+/* Sidebar.css */
+.sidebar {
+    background-color: #343a40; /* Dark background for contrast */
+    color: white; /* White text color */
+    padding: 20px; /* Padding for better spacing */
+    height: 100vh; /* Full height of the viewport */
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2); /* Optional: Shadow for depth */
+  }
+  
+  .sidebar h2 {
+    margin-bottom: 20px; /* Space between the heading and the form */
+  }
+  
+  .sidebar .form-control {
+    background-color: #495057; /* Darker input background */
+    color: white; /* White text in inputs */
+    border: 1px solid #6c757d; /* Light gray border */
+  }
+  
+  .sidebar .form-control:focus {
+    background-color: #495057; /* Darker focus background */
+    color: white; /* White text on focus */
+    border-color: #007bff; /* Blue border on focus */
+  }
+  
+  .sidebar button {
+    width: 100%; /* Full-width button */
+  }
+  
+  .dropdown-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background: white; /* Background color for dropdown */
+    border: 1px solid #ccc; /* Border for dropdown */
+    position: absolute; /* Position it below the input */
+    z-index: 1000; /* Ensure it appears above other elements */
+    max-height: 150px; /* Max height for dropdown */
+    overflow-y: auto; /* Scroll for overflow */
+    width: 100%; /* Make it the same width as the input */
+  }
+  
+  .dropdown-menu li {
+    padding: 5px 10px; /* Padding for items */
+    cursor: pointer; /* Pointer cursor */
+  }
+  
+  .dropdown-menu li:hover {
+    background-color: #007bff; /* Change background on hover */
+    color: white; /* Change text color on hover */
+  }
+  
+  .is-invalid {
+    border-color: red; /* Change border color to red */
+  }
+  
+  .is-invalid:focus {
+    outline: none; /* Remove default outline on focus */
+    box-shadow: 0 0 5px red; /* Optional: add a shadow for better visibility */
+  }
+  
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000; /* Ensure the modal is on top */
+  }
+  
+  .modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 400px; /* Fixed width */
+    max-width: 90%; /* Make sure it is responsive */
+  }
+  
+  .modal-content .btn {
+    width: 100%; /* Make buttons full width */
+    margin-bottom: 10px; /* Add some spacing between buttons */
+  }
+
+  .table-container {
+    max-height: 300px; /* Adjust the height as needed */
+    overflow-y: auto;
+  }
