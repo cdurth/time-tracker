@@ -1,15 +1,24 @@
-import React, { useState, useEffect, useRef } from "react";
-import Sidebar from "./components/Sidebar";
-import TimeEntries from "./components/TimeEntries";
+import React, { useState, useEffect, useRef } from 'react';
+import { openDB } from 'idb';
+import Sidebar from './components/Sidebar'; // Adjust the path as necessary
+import TimeEntries from './components/TimeEntries'; // Adjust the path as necessary
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css'; // Optional if you want to add some styles
 import './components/Sidebar.css';
 import './components/TimeEntries.css';
 
+const dbPromise = openDB('timeTrackingDB', 1, {
+  upgrade(db) {
+    if (!db.objectStoreNames.contains('entries')) {
+      db.createObjectStore('entries', { keyPath: 'id' });
+    }
+  },
+});
+
 const App = () => {
   const [entries, setEntries] = useState([]);
-  const [editEntry, setEditEntry] = useState(null); // State for the entry being edited
-  const [newEntry, setNewEntry] = useState({ // State for new entry
+  const [editEntry, setEditEntry] = useState(null);
+  const [newEntry, setNewEntry] = useState({
     projectCode: '',
     projectTask: '',
     earningType: '',
@@ -17,83 +26,126 @@ const App = () => {
     timeSpent: '',
     description: '',
   });
+  const [deferredPrompt, setDeferredPrompt] = useState(null); // State for the install prompt
   const dateInputRef = useRef(null);
 
-  // Load from localStorage on first render
+  // Load from IndexedDB on first render
   useEffect(() => {
-    const savedEntries = localStorage.getItem("timeEntries");
-    if (savedEntries) {
-      try {
-        const parsedEntries = JSON.parse(savedEntries);
-        setEntries(parsedEntries);
-      } catch (error) {
-        console.error("Error parsing saved entries:", error);
-        setEntries([]); // Reset to an empty array on error
-      }
-    }
-  }, []); // Empty dependency array ensures this runs only once on mount
+    const loadEntries = async () => {
+      const db = await dbPromise;
+      const allEntries = await db.getAll('entries');
+      setEntries(allEntries);
+    };
+    loadEntries();
+  }, []);
 
-  // Save to localStorage whenever entries change
+  // Save to IndexedDB whenever entries change
   useEffect(() => {
-    if (entries.length > 0) { // Save only if there are entries
-      localStorage.setItem("timeEntries", JSON.stringify(entries));
+    const saveEntries = async () => {
+      const db = await dbPromise;
+      await Promise.all(entries.map(entry => db.put('entries', entry)));
+    };
+    if (entries.length > 0) {
+      saveEntries();
     }
   }, [entries]);
 
-  // Add new entry to state
   const addEntry = (entry) => {
-    const updatedEntries = [...entries, { ...entry, id: Date.now() }]; // Adding a unique ID
+    const updatedEntries = [...entries, { ...entry, id: Date.now() }];
     setEntries(updatedEntries);
   };
 
-  // Function to handle updating an existing entry
   const updateEntry = (updatedEntry) => {
     const updatedEntries = entries.map(entry =>
-      entry.id === updatedEntry.id ? updatedEntry : entry // Update by unique ID
+      entry.id === updatedEntry.id ? updatedEntry : entry
     );
     setEntries(updatedEntries);
-    setEditEntry(null); // Clear the editEntry state after updating
+    setEditEntry(null);
   };
 
-  // Function to copy an entry
   const copyEntry = (entry) => {
     const copiedEntry = {
       projectCode: entry.projectCode,
       projectTask: entry.projectTask,
       earningType: entry.earningType,
-      date: new Date(entry.date + "T00:00:00").toLocaleDateString('en-US'), // Format date
+      date: new Date(entry.date + "T00:00:00").toLocaleDateString('en-US'),
       timeSpent: entry.timeSpent,
       description: entry.description,
-      id: Date.now() // Ensure a unique ID
+      id: Date.now()
     };
-    setNewEntry(copiedEntry); // Set the new entry state for the sidebar
-    setEditEntry(copiedEntry); // Set the editEntry to the copied entry for editing
+    setNewEntry(copiedEntry);
+    setEditEntry(copiedEntry);
     if (dateInputRef.current) {
-      dateInputRef.current.focus(); // Focus on the date input if it exists
+      dateInputRef.current.focus();
+    }
+  };
+
+  // Delete entry function
+  const deleteEntry = async (id) => {
+    const updatedEntries = entries.filter(entry => entry.id !== id);
+    setEntries(updatedEntries);
+
+    // Delete from IndexedDB
+    const db = await dbPromise;
+    await db.delete('entries', id);
+  };
+
+  // Handle beforeinstallprompt event
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault(); // Prevent the default install prompt
+      setDeferredPrompt(e); // Store the event
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt(); // Show the install prompt
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+        setDeferredPrompt(null); // Clear the stored prompt
+      });
     }
   };
 
   return (
     <div style={{ display: "flex" }}>
-      {/* Pass entries and the copy function to Sidebar */}
       <Sidebar
         addEntry={addEntry}
         entries={entries}
         setEditEntry={setEditEntry}
         editEntry={editEntry}
         updateEntry={updateEntry}
-        copyEntry={copyEntry} // Pass the copyEntry function to Sidebar
-        newEntry={newEntry} // Pass the newEntry state to the Sidebar
-        setNewEntry={setNewEntry} // Pass setNewEntry to the Sidebar
+        copyEntry={copyEntry}
+        newEntry={newEntry}
+        setNewEntry={setNewEntry}
         dateInputRef={dateInputRef}
+        deleteEntry={deleteEntry} // Pass deleteEntry to Sidebar
       />
       <TimeEntries 
-        entries={entries} 
-        setEditEntry={setEditEntry} 
-        setNewEntry={setNewEntry} // Pass the setNewEntry function
-        copyEntry={copyEntry} // Pass the copyEntry function directly
+        entries={entries}
+        setEditEntry={setEditEntry}
+        setNewEntry={setNewEntry}
+        copyEntry={copyEntry}
         dateInputRef={dateInputRef}
+        deleteEntry={deleteEntry} // Pass deleteEntry to TimeEntries
       />
+      {/* Install Button */}
+      {deferredPrompt && (
+        <button onClick={handleInstallClick} className="btn btn-primary" style={{ position: 'fixed', bottom: '20px', right: '20px' }}>
+          Install App
+        </button>
+      )}
     </div>
   );
 };
