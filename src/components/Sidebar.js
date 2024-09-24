@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
 
 // Define the valid earning types
@@ -7,8 +7,9 @@ const validEarningTypes = [
   'AT', 'MK', 'AC', 'IT', 'TR', 'TC', 'TH', 'HO', 'PT'
 ];
 
-const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copyEntry, dateInputRef }) => {
+const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copyEntry, dateInputRef, deleteEntry }) => {
   const [formData, setFormData] = useState({
+    id:null,
     projectCode: "",
     projectTask: "",
     earningType: "",
@@ -16,7 +17,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     timeSpent: "",
     description: ""
   });
-
+  const projectCodeRef = useRef(null);
   const [error, setError] = useState("");
   const [filteredEarningTypes, setFilteredEarningTypes] = useState(validEarningTypes);
   const [isInputFocused, setInputFocused] = useState(false);
@@ -33,16 +34,21 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
       setFormData(editEntry);
     } else {
       // Reset formData when not editing
-      setFormData({
-        projectCode: "",
-        projectTask: "",
-        earningType: "",
-        date: new Date().toISOString().split("T")[0],
-        timeSpent: "",
-        description: ""
-      });
+      resetFormData();
     }
   }, [editEntry]);
+
+  const resetFormData = () => {
+    setFormData({
+      id:null,    
+      projectCode: "",
+      projectTask: "",
+      earningType: "",
+      date: new Date().toISOString().split("T")[0],
+      timeSpent: "",
+      description: ""
+    });
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -54,7 +60,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
 
     // Filter the earning types based on input
     if (name === 'earningType') {
-      // Update the filtered earning types based on the input value
       const filteredTypes = validEarningTypes.filter(type => type.startsWith(updatedValue));
       setFilteredEarningTypes(filteredTypes);
       setEarningTypeInvalid(!filteredTypes.includes(updatedValue));
@@ -63,7 +68,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
 
   const handleBlur = (e) => {
     if (e.target.name === 'earningType' && !validEarningTypes.includes(formData.earningType)) {
-      setFormData({ ...formData, earningType: "" });
+      setFormData(prevData => ({ ...prevData, earningType: "" }));
       setEarningTypeInvalid(true);
     }
     setInputFocused(false);
@@ -88,21 +93,15 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
 
     // If editing an entry, update it; otherwise, add a new entry
     if (editEntry) {
-      updateEntry(formData); // Call updateEntry if editing
-      setEditEntry(null); // Clear editEntry after updating
+      updateEntry(formData);
+      setEditEntry(null);
     } else {
-      addEntry(formData); // Call addEntry for new entries
+      addEntry(formData);
     }
 
     // Reset form after submission
-    setFormData({
-      projectCode: "",
-      projectTask: "",
-      earningType: "",
-      date: new Date().toISOString().split("T")[0],
-      timeSpent: "",
-      description: ""
-    });
+    resetFormData();
+    projectCodeRef.current.focus();
   };
 
   const handleExport = () => {
@@ -110,59 +109,56 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
   };
 
   const handleAccept = () => {
-    // Filter entries based on the date range
     const filteredEntries = entries.filter(entry => {
       const entryDate = new Date(entry.date);
       return entryDate >= new Date(startDate) && entryDate <= new Date(endDate);
     });
   
-    // Convert the filtered entries to CSV format
     const csvData = filteredEntries.map(entry => ({
       "Project Code": entry.projectCode,
       "Project Task": entry.projectTask,
       "Earning Type": entry.earningType,
-      "Date": entry.date, // Ensure this is already in MM/DD/YYYY format
+      "Date": entry.date,
       "Time Spent": entry.timeSpent * 60,
       "Description": entry.description,
     }));
   
     const csv = Papa.unparse(csvData);
-  
-    // Create a Blob from the CSV string
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  
-    // Create a download link and trigger download
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.href = url;
     link.setAttribute("download", `time_entries_${startDate}_to_${endDate}.csv`);
     document.body.appendChild(link);
     link.click();
-  
-    // Clean up by removing the link
     document.body.removeChild(link);
-  
-    // Close the modal
     setIsModalOpen(false);
+    resetModalDates();
+  };
+
+  const resetModalDates = () => {
     setStartDate("");
     setEndDate("");
   };
 
   const handleCopy = () => {
     if (editEntry) {
-      // Copy entry data for a new entry
       copyEntry(editEntry);
-      // Reset formData after copying
-      setFormData({
-        projectCode: "",
-        projectTask: "",
-        earningType: "",
-        date: new Date().toISOString().split("T")[0],
-        timeSpent: "",
-        description: ""
-      });
+      resetFormData();
     }
   };
+
+  const handleDelete = () => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this entry?");
+    
+    if (confirmDelete) {
+      deleteEntry(formData.id); // Assuming `deleteEntry` is the prop passed to the component
+      // Optionally reset the form or handle any other logic after deletion
+      resetFormData();
+      setEditEntry(null);
+    }
+  };
+  
 
   const calculateWorkingHours = () => {
     const currentDate = new Date();
@@ -172,7 +168,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     let totalWorkingHours = 0;
     for (let day = startOfMonth; day <= endOfMonth; day.setDate(day.getDate() + 1)) {
       const dayOfWeek = day.getDay();
-      // Count weekdays (Monday to Friday)
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         totalWorkingHours += 8; // 8 hours for each weekday
       }
@@ -188,7 +183,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     return { currentlyEnteredHours, totalWorkingHours };
   };
   
-  // Usage
   const { currentlyEnteredHours, totalWorkingHours } = calculateWorkingHours();
 
   const calculateEarningTypePercentages = () => {
@@ -218,12 +212,10 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     const monthlyPercentages = {};
     const yearlyPercentages = {};
 
-    // Calculate monthly percentages
     for (const [earningType, totalTime] of Object.entries(monthlyEarnings)) {
       monthlyPercentages[earningType] = ((totalTime / totalTimeSpent) * 100).toFixed(2);
     }
 
-    // Calculate yearly percentages
     for (const [year, earnings] of Object.entries(yearlyEarnings)) {
       const totalYearTimeSpent = Object.values(earnings).reduce((sum, time) => sum + time, 0);
       for (const [earningType, totalTime] of Object.entries(earnings)) {
@@ -247,7 +239,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
           <label className="form-label">Project Code</label>
-          <input type="text" name="projectCode" className="form-control" value={formData.projectCode} onChange={handleChange} required />
+          <input type="text" name="projectCode" ref={projectCodeRef} className="form-control" value={formData.projectCode} onChange={handleChange} required />
         </div>
         <div className="mb-3">
           <label className="form-label">Project Task</label>
@@ -263,77 +255,88 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             onChange={handleChange}
             onBlur={handleBlur}
             onFocus={() => setInputFocused(true)}
-            list="earningTypes"
             required
           />
+          {isEarningTypeInvalid && <div className="invalid-feedback">Invalid earning type.</div>}
           {isInputFocused && (
-            <datalist id="earningTypes">
-              {filteredEarningTypes.map(type => (
-                <option key={type} value={type} />
+            <ul className="list-group">
+              {filteredEarningTypes.map((type) => (
+                <li key={type} className="list-group-item" onClick={() => handleChange({ target: { name: 'earningType', value: type } })}>
+                  {type}
+                </li>
               ))}
-            </datalist>
+            </ul>
           )}
         </div>
         <div className="mb-3">
           <label className="form-label">Date</label>
-          <input type="date" name="date" className="form-control" value={formData.date} onChange={handleChange} required />
+          <input type="date" name="date" className="form-control" value={formData.date} onChange={handleChange} ref={dateInputRef} required />
         </div>
         <div className="mb-3">
-          <label className="form-label">Time Spent (in hours)</label>
+          <label className="form-label">Time Spent (hours)</label>
           <input type="number" name="timeSpent" className="form-control" value={formData.timeSpent} onChange={handleChange} required />
         </div>
         <div className="mb-3">
           <label className="form-label">Description</label>
-          <textarea name="description" className="form-control" value={formData.description} onChange={handleChange} required></textarea>
+          <textarea name="description" className="form-control" value={formData.description} onChange={handleChange} required />
         </div>
-        <button type="submit" className="btn btn-primary">Add Entry</button>
+        <button type="submit" className="btn btn-primary">{editEntry ? "Update Entry" : "Add Entry"}</button>
+        {editEntry && (
+            <button onClick={handleDelete} className="btn btn-danger">Delete Entry</button>
+        )}
       </form>
 
-
-      <h3>Currently Entered Hours</h3>
-      <div>{currentlyEnteredHours} / {totalWorkingHours}</div>
-
-      <h3>Earning Type Percentages</h3>
-<div className="table-container">
-  <table className="table">
-    <thead>
-      <tr>
-        <th>Earning Type</th>
-        <th>Monthly %</th>
-        <th>Yearly %</th>
-      </tr>
-    </thead>
-    <tbody>
-      {earningTypePercentages.map(({ earningType, monthPercentage, yearPercentage }) => (
-        <tr key={earningType}>
-          <td>{earningType}</td>
-          <td>{monthPercentage}%</td>
-          <td>{yearPercentage}%</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
-      <button className="btn btn-warning" onClick={handleExport}>Export Time</button>
-      {/* Modal for Export */}
       {isModalOpen && (
-  <div className="modal-overlay">
-    <div className="modal-content">
-      <h2 className="dark">Export Time Entries</h2>
-      <div className="mb-3">
-        <label className="form-label dark">Start Date</label>
-        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="form-control" />
+  <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+    <div className="modal show" style={{ display: 'block' }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal-dialog">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title dark">Export Time Entries</h5>
+            <button type="button" className="btn-close" onClick={() => setIsModalOpen(false)}></button>
+          </div>
+          <div className="modal-body">
+            <label className="form-label dark">Start Date</label>
+            <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+            <label className="form-label dark">End Date</label>
+            <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Close</button>
+            <button type="button" className="btn btn-primary" onClick={handleAccept}>Export</button>
+          </div>
+        </div>
       </div>
-      <div className="mb-3">
-        <label className="form-label dark">End Date</label>
-        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="form-control" />
-      </div>
-      <button className="btn btn-success w-100" onClick={handleAccept}>Accept</button>
-      <button className="btn btn-secondary w-100" onClick={() => setIsModalOpen(false)}>Cancel</button>
     </div>
   </div>
 )}
 
+
+      <div className="summary">
+        <h3>Summary</h3>
+        <p>Entered Hours: {currentlyEnteredHours} / {totalWorkingHours}</p>
+        <div className="table-container">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Earning Type</th>
+              <th>Monthly %</th>
+              <th>Yearly %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {earningTypePercentages.map(({ earningType, monthPercentage, yearPercentage }) => (
+              <tr key={earningType}>
+                <td>{earningType}</td>
+                <td>{monthPercentage}%</td>
+                <td>{yearPercentage}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+      </div>
+      <button type="button" className="btn btn-info" style={{marginTop:10}} onClick={handleExport}>Export</button>
     </div>
   );
 };

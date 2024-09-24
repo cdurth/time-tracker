@@ -74,6 +74,7 @@ const TimeEntries = ({ entries, setEditEntry, copyEntry, dateInputRef }) => {
               <th scope="col">Date</th>
               <th scope="col">Time Spent</th>
               <th scope="col">Description</th>
+              <th scope="col">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -99,6 +100,7 @@ const TimeEntries = ({ entries, setEditEntry, copyEntry, dateInputRef }) => {
                         <td>{entry.earningType}</td>
                         <td>{new Date(entry.date + "T00:00:00").toLocaleDateString('en-US')}</td>
                         <td>{entry.timeSpent} hrs</td>
+                        <td>{entry.description}</td>
                         <td>
                           <button 
                             className="btn btn-warning btn-sm"
@@ -117,7 +119,7 @@ const TimeEntries = ({ entries, setEditEntry, copyEntry, dateInputRef }) => {
                     ))}
                     <tr className="summary-row">
                       <td colSpan="7" className="text-center">
-                        Total hours for {dayOfWeek}, {formattedDate}: {totalHours.toFixed(2)} hrs
+                        {dayOfWeek}, {formattedDate}: {totalHours.toFixed(2)} total hours
                       </td>
                     </tr>
                   </React.Fragment>
