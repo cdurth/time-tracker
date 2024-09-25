@@ -314,14 +314,17 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                         onChange={handleInputChange}
                         onBlur={handleInputBlur}
                         onFocus={handleInputFocus}
+                        ref={projectCodeRef}
                         required
                         autoComplete="off"
                     />
-                    {!focusedField && projectCodeInvalid && <div className="invalid-feedback">Invalid project code.</div>}
-                    {focusedField === 'projectCode' && filteredProjectCodes.length > 0 && formData.projectCode.length > 0 && (
+                    {!focusedField && projectCodeInvalid &&
+                        <div className="invalid-feedback">Invalid project code.</div>}
+                    {focusedField === 'projectCode' && filteredProjectCodes.length > 0 && (
                         <ul className="list-group">
                             {filteredProjectCodes.map((code) => (
-                                <li key={code} className="list-group-item" onClick={() => handleInputChange({ target: { name: 'projectCode', value: code } })}>
+                                <li key={code} className="list-group-item"
+                                    onClick={() => handleInputChange({target: {name: 'projectCode', value: code}})}>
                                     {code}
                                 </li>
                             ))}
@@ -342,11 +345,17 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                         autoComplete="off"
                         disabled={!formData.projectCode}
                     />
-                    {!focusedField && !tasksLoading && projectTaskInvalid && <div className="invalid-feedback">Invalid project task.</div>}
-                    {focusedField === 'projectTask' && filteredProjectTasks.length > 0 && formData.projectTask.length > 0 && (
+                    {!focusedField && !tasksLoading && projectTaskInvalid &&
+                        <div className="invalid-feedback">Invalid project task.</div>}
+                    {focusedField === 'projectTask' && filteredProjectTasks.length > 0 && (
                         <ul className="list-group">
                             {filteredProjectTasks.map((task) => (
-                                <li key={task.id} className="list-group-item" onClick={() => handleInputChange({ target: { name: 'projectTask', value: task.task } })}>
+                                <li key={task.id} className="list-group-item" onClick={() => handleInputChange({
+                                    target: {
+                                        name: 'projectTask',
+                                        value: task.task
+                                    }
+                                })}>
                                     {task.task}
                                 </li>
                             ))}
@@ -366,11 +375,13 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                         required
                         autoComplete="off"
                     />
-                    {!focusedField && earningTypeInvalid && <div className="invalid-feedback">Invalid earning type.</div>}
-                    {focusedField === 'earningType' && filteredEarningTypes.length > 0 && formData.earningType.length > 0 && (
+                    {!focusedField && earningTypeInvalid &&
+                        <div className="invalid-feedback">Invalid earning type.</div>}
+                    {focusedField === 'earningType' && filteredEarningTypes.length > 0 && (
                         <ul className="list-group">
                             {filteredEarningTypes.map((type) => (
-                                <li key={type} className="list-group-item" onClick={() => handleInputChange({ target: { name: 'earningType', value: type } })}>
+                                <li key={type} className="list-group-item"
+                                    onClick={() => handleInputChange({target: {name: 'earningType', value: type}})}>
                                     {type}
                                 </li>
                             ))}
@@ -379,40 +390,52 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                 </div>
                 <div className="mb-3">
                     <label className="form-label">Date</label>
-                    <input type="date" name="date" className="form-control" value={formData.date} onChange={handleInputChange} ref={dateInputRef} required />
+                    <input type="date" name="date" className="form-control" value={formData.date}
+                           onChange={handleInputChange} ref={dateInputRef} required/>
                 </div>
                 <div className="mb-3">
                     <label className="form-label">Time Spent (hours)</label>
-                    <input type="number" name="timeSpent" className="form-control" value={formData.timeSpent} onChange={handleInputChange} required />
+                    <input type="number" name="timeSpent" className="form-control" value={formData.timeSpent}
+                           onChange={handleInputChange} required/>
                 </div>
                 <div className="mb-3">
                     <label className="form-label">Description</label>
-                    <textarea name="description" className="form-control" value={formData.description} onChange={handleInputChange} required />
+                    <textarea name="description" className="form-control" value={formData.description}
+                              onChange={handleInputChange} required/>
                 </div>
                 <button type="submit" className="btn btn-primary">{editEntry ? "Update Entry" : "Add Entry"}</button>
                 {editEntry && (
                     <button type="button" onClick={deleteExistingEntry} className="btn btn-danger">Delete Entry</button>
                 )}
+                {editEntry && (
+                    <button type="button" className="btn btn-light" onClick={() => setEditEntry(null)}>Cancel Edit</button>
+                )}
             </form>
 
             {isModalOpen && (
                 <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-                    <div className="modal show" style={{ display: 'block' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal show" style={{display: 'block'}} onClick={(e) => e.stopPropagation()}>
                         <div className="modal-dialog">
                             <div className="modal-content">
                                 <div className="modal-header">
                                     <h5 className="modal-title dark">Export Time Entries</h5>
-                                    <button type="button" className="btn-close" onClick={() => setIsModalOpen(false)}></button>
+                                    <button type="button" className="btn-close"
+                                            onClick={() => setIsModalOpen(false)}></button>
                                 </div>
                                 <div className="modal-body">
                                     <label className="form-label dark">Start Date</label>
-                                    <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+                                    <input type="date" className="form-control" value={startDate}
+                                           onChange={(e) => setStartDate(e.target.value)} required/>
                                     <label className="form-label dark">End Date</label>
-                                    <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+                                    <input type="date" className="form-control" value={endDate}
+                                           onChange={(e) => setEndDate(e.target.value)} required/>
                                 </div>
                                 <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Close</button>
-                                    <button type="button" className="btn btn-primary" onClick={generateCSV}>Export</button>
+                                    <button type="button" className="btn btn-secondary"
+                                            onClick={() => setIsModalOpen(false)}>Close
+                                    </button>
+                                    <button type="button" className="btn btn-primary" onClick={generateCSV}>Export
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -433,7 +456,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                         </tr>
                         </thead>
                         <tbody>
-                        {earningTypePercentages.map(({ earningType, monthPercentage, yearPercentage }) => (
+                        {earningTypePercentages.map(({earningType, monthPercentage, yearPercentage}) => (
                             <tr key={earningType}>
                                 <td>{earningType}</td>
                                 <td>{monthPercentage}%</td>
@@ -444,19 +467,15 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                     </table>
                 </div>
             </div>
-
             <div className="d-flex justify-content-between">
-                <button type="button" className="btn btn-secondary" onClick={exportToCSV}>
-                    Export to CSV
-                </button>
-                {editEntry && (
-                    <button type="button" className="btn btn-light" onClick={() => setEditEntry(null)}>
-                        Cancel Edit
+                <div className="btn-group" role="group" aria-label="Sidebar actions">
+                    <button type="button" className="btn btn-info" onClick={exportToCSV}>
+                        <i className="bi bi-download"></i>
                     </button>
-                )}
-                <button type="button" className="btn btn-secondary" onClick={toggleSettings}>
-                    Settings
-                </button>
+                    <button type="button" className="btn btn-secondary" onClick={toggleSettings}>
+                        <i className="bi bi-gear-fill"></i>
+                    </button>
+                </div>
             </div>
         </div>
     );
