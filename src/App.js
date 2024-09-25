@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { openDB } from 'idb';
-import Sidebar from './components/Sidebar'; // Adjust the path as necessary
-import TimeEntries from './components/TimeEntries'; // Adjust the path as necessary
+import Sidebar from './components/Sidebar';
+import TimeEntries from './components/TimeEntries';
+import Settings from './components/Settings';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './App.css'; // Optional if you want to add some styles
+import './App.css';
 import './components/Sidebar.css';
 import './components/TimeEntries.css';
 
-const dbPromise = openDB('timeTrackingDB', 1, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains('entries')) {
-      db.createObjectStore('entries', { keyPath: 'id' });
-    }
-  },
-});
+import {
+  addTimeEntry,
+  getTimeEntries,
+  updateTimeEntry,
+  deleteTimeEntry
+} from './services/idbService';
 
 const App = () => {
   const [entries, setEntries] = useState([]);
@@ -26,39 +25,33 @@ const App = () => {
     timeSpent: '',
     description: '',
   });
-  const [deferredPrompt, setDeferredPrompt] = useState(null); // State for the install prompt
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const [settingsData, setSettingsData] = useState({
+    setting1: 'default1',
+    setting2: 'default2',
+  });
   const dateInputRef = useRef(null);
 
   // Load from IndexedDB on first render
   useEffect(() => {
     const loadEntries = async () => {
-      const db = await dbPromise;
-      const allEntries = await db.getAll('entries');
+      const allEntries = await getTimeEntries();
       setEntries(allEntries);
     };
     loadEntries();
   }, []);
 
-  // Save to IndexedDB whenever entries change
-  useEffect(() => {
-    const saveEntries = async () => {
-      const db = await dbPromise;
-      await Promise.all(entries.map(entry => db.put('entries', entry)));
-    };
-    if (entries.length > 0) {
-      saveEntries();
-    }
-  }, [entries]);
-
-  const addEntry = (entry) => {
-    const updatedEntries = [...entries, { ...entry, id: Date.now() }];
+  const addEntry = async (entry) => {
+    const timeEntryWithID = { ...entry, id: Date.now() };
+    await addTimeEntry(timeEntryWithID);
+    const updatedEntries = await getTimeEntries();
     setEntries(updatedEntries);
   };
 
-  const updateEntry = (updatedEntry) => {
-    const updatedEntries = entries.map(entry =>
-      entry.id === updatedEntry.id ? updatedEntry : entry
-    );
+  const updateEntry = async (updatedEntry) => {
+    await updateTimeEntry(updatedEntry);
+    const updatedEntries = await getTimeEntries();
     setEntries(updatedEntries);
     setEditEntry(null);
   };
@@ -71,7 +64,7 @@ const App = () => {
       date: new Date(entry.date + "T00:00:00").toLocaleDateString('en-US'),
       timeSpent: entry.timeSpent,
       description: entry.description,
-      id: Date.now()
+      id: Date.now(),
     };
     setNewEntry(copiedEntry);
     setEditEntry(copiedEntry);
@@ -80,21 +73,25 @@ const App = () => {
     }
   };
 
-  // Delete entry function
-  const deleteEntry = async (id) => {
-    const updatedEntries = entries.filter(entry => entry.id !== id);
+  const handleDeleteEntry = async (id) => {
+    await deleteTimeEntry(id);
+    const updatedEntries = await getTimeEntries();
     setEntries(updatedEntries);
+  };
 
-    // Delete from IndexedDB
-    const db = await dbPromise;
-    await db.delete('entries', id);
+  const toggleSettings = () => {
+    setIsSettingsVisible(!isSettingsVisible);
+  };
+
+  const saveSettings = (newSettings) => {
+    setSettingsData(newSettings);
   };
 
   // Handle beforeinstallprompt event
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault(); // Prevent the default install prompt
-      setDeferredPrompt(e); // Store the event
+      e.preventDefault();
+      setDeferredPrompt(e);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -106,47 +103,60 @@ const App = () => {
 
   const handleInstallClick = () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt(); // Show the install prompt
+      deferredPrompt.prompt();
       deferredPrompt.userChoice.then((choiceResult) => {
         if (choiceResult.outcome === 'accepted') {
           console.log('User accepted the install prompt');
         } else {
           console.log('User dismissed the install prompt');
         }
-        setDeferredPrompt(null); // Clear the stored prompt
+        setDeferredPrompt(null);
       });
     }
   };
 
   return (
-    <div style={{ display: "flex" }}>
-      <Sidebar
-        addEntry={addEntry}
-        entries={entries}
-        setEditEntry={setEditEntry}
-        editEntry={editEntry}
-        updateEntry={updateEntry}
-        copyEntry={copyEntry}
-        newEntry={newEntry}
-        setNewEntry={setNewEntry}
-        dateInputRef={dateInputRef}
-        deleteEntry={deleteEntry} // Pass deleteEntry to Sidebar
-      />
-      <TimeEntries 
-        entries={entries}
-        setEditEntry={setEditEntry}
-        setNewEntry={setNewEntry}
-        copyEntry={copyEntry}
-        dateInputRef={dateInputRef}
-        deleteEntry={deleteEntry} // Pass deleteEntry to TimeEntries
-      />
-      {/* Install Button */}
-      {deferredPrompt && (
-        <button onClick={handleInstallClick} className="btn btn-primary" style={{ position: 'fixed', bottom: '20px', right: '20px' }}>
-          Install App
-        </button>
-      )}
-    </div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex" }}>
+          <Sidebar
+              addEntry={addEntry}
+              entries={entries}
+              setEditEntry={setEditEntry}
+              editEntry={editEntry}
+              updateEntry={updateEntry}
+              copyEntry={copyEntry}
+              newEntry={newEntry}
+              setNewEntry={setNewEntry}
+              dateInputRef={dateInputRef}
+              deleteEntry={handleDeleteEntry}
+              toggleSettings={toggleSettings} // Pass the toggleSettings function to Sidebar
+          />
+          {!isSettingsVisible && (
+              <TimeEntries
+                  entries={entries}
+                  setEditEntry={setEditEntry}
+                  setNewEntry={setNewEntry}
+                  copyEntry={copyEntry}
+                  dateInputRef={dateInputRef}
+                  deleteEntry={handleDeleteEntry}
+              />
+          )}
+          {isSettingsVisible && (
+              <div style={{ flexGrow: 1 }}>
+                <Settings
+                    settingsData={settingsData}
+                    saveSettings={saveSettings}
+                    closeSettings={toggleSettings} // Close the Settings component when toggling
+                />
+              </div>
+          )}
+        </div>
+        {deferredPrompt && (
+            <button onClick={handleInstallClick} className="btn btn-primary" style={{ position: 'fixed', bottom: '20px', right: '20px' }}>
+              Install App
+            </button>
+        )}
+      </div>
   );
 };
 

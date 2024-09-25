@@ -1,6 +1,7 @@
 /* Sidebar.css */
 .sidebar {
     height: 100vh; /* Full viewport height */
+    min-width: 340px;
     overflow-y: auto;
     background-color: #343a40; /* Dark background for contrast */
     color: white; /* White text color */
