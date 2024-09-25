@@ -82,7 +82,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         let updatedValue = value;
-
         if (name === 'earningType') {
             updatedValue = value.toUpperCase();
             const filteredTypes = validEarningTypes.filter((type) => type.startsWith(updatedValue));
@@ -171,6 +170,11 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         resetFormData();
         projectCodeRef.current.focus();
     };
+    
+    const handleEditCancel = () => {
+        setEditEntry(null);
+        projectCodeRef.current.focus();
+    }
 
     // Export entries to CSV
     const exportToCSV = () => {
@@ -188,7 +192,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             "Project Code": entry.projectCode,
             "Project Task": entry.projectTask,
             "Earning Type": entry.earningType,
-            "Date": entry.date,
+            "Date": entry.date + " 00:00:00.000",
             "Time Spent": entry.timeSpent * 60,
             "Description": entry.description,
         }));
@@ -408,7 +412,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                     <button type="button" onClick={deleteExistingEntry} className="btn btn-danger">Delete Entry</button>
                 )}
                 {editEntry && (
-                    <button type="button" className="btn btn-light" onClick={() => setEditEntry(null)}>Cancel Edit</button>
+                    <button type="button" className="btn btn-light" onClick={handleEditCancel}>Cancel Edit</button>
                 )}
             </form>
 
