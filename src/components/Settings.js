@@ -29,14 +29,6 @@ const Settings = ({ settingsData, saveSettings, closeSettings }) => {
         loadProjectCodes();
     }, []);
 
-    const handleSettingChange = (e) => {
-        const { name, value } = e.target;
-        setFormData({
-            ...formData,
-            [name]: value,
-        });
-    };
-
     const handleAddProjectCode = async () => {
         if (newProjectCode.trim() === '') return;
 
