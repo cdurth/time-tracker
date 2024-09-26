@@ -7,7 +7,7 @@ import {
 } from '../services/idbService';
 
 const Settings = ({ settingsData, saveSettings, closeSettings }) => {
-    const [formData, setFormData] = useState({
+    const [formData] = useState({
         // Initialize with your default settings or props
         setting1: settingsData.setting1 || '',
         setting2: settingsData.setting2 || '',
