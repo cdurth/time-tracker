@@ -35,7 +35,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
-    // Effect to load project codes
     useEffect(() => {
         async function loadProjectCodes() {
             const codes = await getProjectCodes();
@@ -44,7 +43,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         loadProjectCodes();
     }, []);
 
-    // Effect to handle the edit entry
     useEffect(() => {
         if (editEntry) {
             setFormData(editEntry);
@@ -54,7 +52,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         }
     }, [editEntry]);
 
-    // Function to load project tasks
     const loadProjectTasks = async (projectCode) => {
         setTasksLoading(true);
         const tasks = await getProjectTasksByCode(projectCode);
@@ -63,7 +60,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         setTasksLoading(false);
     };
 
-    // Function to reset form data
     const resetFormData = () => {
         setFormData({
             id: null,
@@ -78,7 +74,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         setFilteredProjectTasks([]);
     };
 
-    // Handle input change
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         let updatedValue = value;
@@ -110,7 +105,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         setFormData({ ...formData, [name]: updatedValue });
     };
 
-    // Handle input blur
     const handleInputBlur = (e) => {
         const { name } = e.target;
 
@@ -140,7 +134,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         setFocusedField("");
     };
 
-    // Handle input focus
     const handleInputFocus = async (e) => {
         setFocusedField(e.target.name);
         if (e.target.name === 'projectTask' && formData.projectCode && projectTasks.length === 0 && !tasksLoading) {
@@ -149,7 +142,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         }
     };
 
-    // Handle form submission
     const handleFormSubmit = (e) => {
         e.preventDefault();
 
@@ -170,18 +162,16 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         resetFormData();
         projectCodeRef.current.focus();
     };
-    
+
     const handleEditCancel = () => {
         setEditEntry(null);
         projectCodeRef.current.focus();
     }
 
-    // Export entries to CSV
     const exportToCSV = () => {
         setIsModalOpen(true);
     };
 
-    // Generate CSV file
     const generateCSV = () => {
         const filteredEntries = entries.filter((entry) => {
             const entryDate = new Date(entry.date);
@@ -210,13 +200,11 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         resetModalDates();
     };
 
-    // Reset modal dates
     const resetModalDates = () => {
         setStartDate("");
         setEndDate("");
     };
 
-    // Delete existing entry
     const deleteExistingEntry = () => {
         const confirmDelete = window.confirm("Are you sure you want to delete this entry?");
         if (confirmDelete) {
@@ -226,7 +214,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         }
     };
 
-    // Calculate working hours
     const calculateWorkingHours = () => {
         const currentDate = new Date();
         const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -252,7 +239,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
 
     const { currentlyEnteredHours, totalWorkingHours } = calculateWorkingHours();
 
-    // Calculate earning type percentages
     const calculateEarningTypePercentages = () => {
         const totalEntries = entries.length;
         if (totalEntries === 0) return [];
@@ -297,7 +283,9 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         return Object.keys(monthlyPercentages).map((type) => ({
             earningType: type,
             monthPercentage: monthlyPercentages[type] || "0.00",
+            monthHours: monthly[type] || 0,
             yearPercentage: yearlyPercentages[currentYear]?.[type] || "0.00",
+            yearHours: yearly[currentYear]?.[type] || 0,
         }));
     };
 
@@ -460,25 +448,21 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                         </tr>
                         </thead>
                         <tbody>
-                        {earningTypePercentages.map(({earningType, monthPercentage, yearPercentage}) => (
-                            <tr key={earningType}>
-                                <td>{earningType}</td>
-                                <td>{monthPercentage}%</td>
-                                <td>{yearPercentage}%</td>
+                        {earningTypePercentages.map((entry) => (
+                            <tr key={entry.earningType}>
+                                <td>{entry.earningType}</td>
+                                <td className="tooltip-cell">
+                                    {entry.monthPercentage}%
+                                    <span className="tooltip-text">{entry.monthHours} hours</span>
+                                </td>
+                                <td className="tooltip-cell">
+                                    {entry.yearPercentage}%
+                                    <span className="tooltip-text">{entry.yearHours} hours</span>
+                                </td>
                             </tr>
                         ))}
                         </tbody>
                     </table>
-                </div>
-            </div>
-            <div className="d-flex justify-content-between">
-                <div className="btn-group" role="group" aria-label="Sidebar actions">
-                    <button type="button" className="btn btn-info" onClick={exportToCSV}>
-                        <i className="bi bi-download"></i>
-                    </button>
-                    <button type="button" className="btn btn-secondary" onClick={toggleSettings}>
-                        <i className="bi bi-gear-fill"></i>
-                    </button>
                 </div>
             </div>
         </div>
