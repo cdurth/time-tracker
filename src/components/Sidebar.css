@@ -91,7 +91,7 @@
 
   .table-container {
     max-height: 300px; /* Adjust the height as needed */
-    overflow-y: auto;
+    /*overflow-y: auto;*/
   }
 
   .summary {

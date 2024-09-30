@@ -465,6 +465,16 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                     </table>
                 </div>
             </div>
+            <div className="d-flex justify-content-between">
+                <div className="btn-group" role="group" aria-label="Sidebar actions">
+                    <button type="button" className="btn btn-info" onClick={exportToCSV}>
+                        <i className="bi bi-download"></i>
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={toggleSettings}>
+                        <i className="bi bi-gear-fill"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
