@@ -240,56 +240,101 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     const { currentlyEnteredHours, totalWorkingHours } = calculateWorkingHours();
 
     const calculateEarningTypePercentages = () => {
-        const totalEntries = entries.length;
-        if (totalEntries === 0) return [];
+        if (entries.length === 0) return [];
 
-        const totalTimeSpent = entries.reduce((sum, entry) => sum + parseFloat(entry.timeSpent || 0), 0);
+        // Get the current date, month, and year
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
 
+        console.log(`Current Date: ${currentDate}`);
+        console.log(`Current Year: ${currentYear}`);
+        console.log(`Current Month: ${currentMonth + 1}`);
+
+        // Initialize containers for monthly and yearly aggregates
         const monthly = {};
         const yearly = {};
 
-        const currentYear = new Date().getFullYear();
-        const monthYear = new Date().toLocaleString("default", { month: "long", year: "numeric" });
+        // Function to add time to a dictionary
+        const addTimeToDictionary = (dict, earningType, timeSpent) => {
+            dict[earningType] = (dict[earningType] || 0) + parseFloat(timeSpent);
+        };
 
+        // Function to parse date without timezone shifting
+        const parseDateWithoutShift = (dateString) => {
+            const parts = dateString.split("-");
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        };
+
+        // Process all entries
         entries.forEach((entry) => {
             const { earningType, date, timeSpent } = entry;
-            const entryDate = new Date(date);
-            const monthYearKey = entryDate.toLocaleString("default", { month: "long", year: "numeric" });
+            const entryDate = parseDateWithoutShift(date);
+            const entryYear = entryDate.getFullYear();
+            const entryMonth = entryDate.getMonth();
 
-            if (monthYearKey === monthYear) {
-                monthly[earningType] = (monthly[earningType] || 0) + parseFloat(timeSpent);
+            console.log(`Processing entry: ${JSON.stringify(entry)}`);
+            console.log(`Entry Date: ${entryDate}`);
+            console.log(`Entry Year: ${entryYear}`);
+            console.log(`Entry Month: ${entryMonth + 1}`);
+
+            // Accumulate time for current month entries
+            if (entryYear === currentYear && entryMonth === currentMonth) {
+                console.log(`Adding to monthly: ${earningType} -> ${timeSpent}`);
+                addTimeToDictionary(monthly, earningType, timeSpent);
             }
 
-            const year = entryDate.getFullYear();
-            yearly[year] = yearly[year] || {};
-            yearly[year][earningType] = (yearly[year][earningType] || 0) + parseFloat(timeSpent);
+            // Accumulate time for current year entries
+            if (entryYear === currentYear) {
+                console.log(`Adding to yearly: ${earningType} -> ${timeSpent}`);
+                addTimeToDictionary(yearly, earningType, timeSpent);
+            }
         });
 
+        // Calculate total monthly and yearly times
+        const monthlyTotalTime = Object.values(monthly).reduce((sum, time) => sum + time, 0);
+        const yearlyTotalTime = Object.values(yearly).reduce((sum, time) => sum + time, 0);
+
+        console.log(`Monthly Totals: ${JSON.stringify(monthly)}`);
+        console.log(`Monthly Total Time: ${monthlyTotalTime}`);
+        console.log(`Yearly Totals: ${JSON.stringify(yearly)}`);
+        console.log(`Yearly Total Time: ${yearlyTotalTime}`);
+
+        // Calculate percentages for monthly and yearly data
         const monthlyPercentages = {};
         const yearlyPercentages = {};
 
-        for (const [type, totalTime] of Object.entries(monthly)) {
-            monthlyPercentages[type] = ((totalTime / totalTimeSpent) * 100).toFixed(2);
-        }
-
-        for (const [year, earnings] of Object.entries(yearly)) {
-            const totalYearTime = Object.values(earnings).reduce((sum, time) => sum + time, 0);
-            yearlyPercentages[year] = yearlyPercentages[year] || {};
-            for (const [type, totalTime] of Object.entries(earnings)) {
-                yearlyPercentages[year][type] = ((totalTime / totalYearTime) * 100).toFixed(2);
+        if (monthlyTotalTime > 0) {
+            for (const [type, totalTime] of Object.entries(monthly)) {
+                monthlyPercentages[type] = ((totalTime / monthlyTotalTime) * 100).toFixed(2);
             }
         }
 
-        return Object.keys(monthlyPercentages).map((type) => ({
+        if (yearlyTotalTime > 0) {
+            for (const [type, totalTime] of Object.entries(yearly)) {
+                yearlyPercentages[type] = ((totalTime / yearlyTotalTime) * 100).toFixed(2);
+            }
+        }
+
+        console.log(`Monthly Percentages: ${JSON.stringify(monthlyPercentages)}`);
+        console.log(`Yearly Percentages: ${JSON.stringify(yearlyPercentages)}`);
+
+        // Create the result array
+        const allEarningTypes = new Set([...Object.keys(monthly), ...Object.keys(yearly)]);
+        const results = Array.from(allEarningTypes).map((type) => ({
             earningType: type,
             monthPercentage: monthlyPercentages[type] || "0.00",
             monthHours: monthly[type] || 0,
-            yearPercentage: yearlyPercentages[currentYear]?.[type] || "0.00",
-            yearHours: yearly[currentYear]?.[type] || 0,
+            yearPercentage: yearlyPercentages[type] || "0.00",
+            yearHours: yearly[type] || 0,
         }));
+
+        console.log(`Results: ${JSON.stringify(results)}`);
+
+        return results;
     };
 
-    const earningTypePercentages = calculateEarningTypePercentages();
+     const earningTypePercentages = calculateEarningTypePercentages();
 
     return (
         <div className="sidebar">
