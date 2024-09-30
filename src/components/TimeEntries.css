@@ -3,4 +3,9 @@
     font-weight: bold;
     color: white; /* Optional: For better contrast */
   }
-  
+/* Add this CSS rule to remove padding and spacing */
+.no-padding-spacing-table th,
+.no-padding-spacing-table td {
+    padding: 0 !important;
+    margin: 0 !important;
+}
