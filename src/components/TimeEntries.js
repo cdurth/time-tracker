@@ -68,13 +68,22 @@ const TimeEntries = ({ entries, setEditEntry, copyEntry, dateInputRef }) => {
             <table className="table table-striped mt-3 no-padding-spacing-table">
               <thead>
               <tr>
-                <th scope="col">Project Code</th>
-                <th scope="col">Project Task</th>
-                <th scope="col">Earning Type</th>
+                <th scope="col" className="tooltip-cell">
+                  Project
+                  <span className="tooltip-text">Project Code</span>
+                </th>
+                <th scope="col" className="tooltip-cell">
+                  Task
+                  <span className="tooltip-text">Project Task</span>
+                </th>
+                <th scope="col" className="tooltip-cell">
+                  ET
+                  <span className="tooltip-text">Earning Type</span>
+                </th>
                 <th scope="col">Date</th>
                 <th scope="col">Time Spent</th>
                 <th scope="col">Description</th>
-                <th scope="col">Action</th>
+                {/*<th scope="col">Action</th>*/}
               </tr>
               </thead>
               <tbody>

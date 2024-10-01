@@ -188,12 +188,12 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         });
 
         const csvData = filteredEntries.map((entry) => ({
-            "Project Code": entry.projectCode,
+            "Project": entry.projectCode,
             "Project Task": entry.projectTask,
             "Earning Type": entry.earningType,
             "Date": entry.date + " 00:00:00.000",
             "Time Spent": entry.timeSpent * 60,
-            "Description": entry.description,
+            "Description": entry.description.replace(/[\r\n]+/g, ' '),
         }));
 
         const csv = Papa.unparse(csvData);
@@ -338,7 +338,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                         autoComplete="off"
                     />
                     {!focusedField && projectCodeInvalid &&
-                        <div className="invalid-feedback">Invalid project code.</div>}
+                        <div className="invalid-feedback">Invalid project.</div>}
                     {focusedField === 'projectCode' && filteredProjectCodes.length > 0 && (
                         <ul className="list-group">
                             {filteredProjectCodes.map((code) => (
@@ -485,7 +485,10 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                 <table className="table">
                     <thead>
                     <tr>
-                        <th>Earning Type</th>
+                        <th className="tooltip-cell">
+                            ET
+                            <span className="tooltip-text">Earning Type</span>
+                        </th>
                         <th>Monthly %</th>
                         <th>Yearly %</th>
                     </tr>
