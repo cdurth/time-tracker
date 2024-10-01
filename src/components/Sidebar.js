@@ -512,11 +512,18 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             </div>
             <div className="d-flex justify-content-between">
                 <div className="btn-group" role="group" aria-label="Sidebar actions">
-                    <button type="button" className="btn btn-info" onClick={exportToCSV}>
-                        <i className="bi bi-download"></i>
+
+                    <button type="button" className="btn btn-success tooltip-cell" onClick={() => window.location.reload()}>
+                        <i className="bi bi-arrow-clockwise"></i>
+                        <span className="tooltip-text">Reload Page</span>
                     </button>
-                    <button type="button" className="btn btn-secondary" onClick={toggleSettings}>
+                    <button type="button" className="btn btn-secondary tooltip-cell" onClick={toggleSettings}>
                         <i className="bi bi-gear-fill"></i>
+                        <span className="tooltip-text">Settings</span>
+                    </button>
+                    <button type="button" className="btn btn-info tooltip-cell" onClick={exportToCSV}>
+                        <i className="bi bi-download"></i>
+                        <span className="tooltip-text">Export CSV</span>
                     </button>
                 </div>
             </div>

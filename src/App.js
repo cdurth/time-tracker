@@ -85,6 +85,7 @@ const App = () => {
 
   const saveSettings = (newSettings) => {
     setSettingsData(newSettings);
+    window.location.reload();
   };
 
   // Handle beforeinstallprompt event
