@@ -18,6 +18,10 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         description: ""
     });
 
+    // Define the months
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const currentDate = new Date();
+    const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth()); // Default to the current month
     const [projectCodes, setProjectCodes] = useState([]);
     const [projectTasks, setProjectTasks] = useState([]);
     const projectCodeRef = useRef(null);
@@ -168,6 +172,11 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         projectCodeRef.current.focus();
     }
 
+    // Handle month change
+    const handleMonthChange = (e) => {
+        setSelectedMonth(parseInt(e.target.value));
+    };
+
     const exportToCSV = () => {
         setIsModalOpen(true);
     };
@@ -242,14 +251,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     const calculateEarningTypePercentages = () => {
         if (entries.length === 0) return [];
 
-        // Get the current date, month, and year
-        const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth();
-
-        console.log(`Current Date: ${currentDate}`);
-        console.log(`Current Year: ${currentYear}`);
-        console.log(`Current Month: ${currentMonth + 1}`);
 
         // Initialize containers for monthly and yearly aggregates
         const monthly = {};
@@ -273,20 +275,13 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             const entryYear = entryDate.getFullYear();
             const entryMonth = entryDate.getMonth();
 
-            console.log(`Processing entry: ${JSON.stringify(entry)}`);
-            console.log(`Entry Date: ${entryDate}`);
-            console.log(`Entry Year: ${entryYear}`);
-            console.log(`Entry Month: ${entryMonth + 1}`);
-
-            // Accumulate time for current month entries
-            if (entryYear === currentYear && entryMonth === currentMonth) {
-                console.log(`Adding to monthly: ${earningType} -> ${timeSpent}`);
+            // Accumulate time for selected month entries
+            if (entryYear === currentYear && entryMonth === selectedMonth) {
                 addTimeToDictionary(monthly, earningType, timeSpent);
             }
 
             // Accumulate time for current year entries
             if (entryYear === currentYear) {
-                console.log(`Adding to yearly: ${earningType} -> ${timeSpent}`);
                 addTimeToDictionary(yearly, earningType, timeSpent);
             }
         });
@@ -294,11 +289,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         // Calculate total monthly and yearly times
         const monthlyTotalTime = Object.values(monthly).reduce((sum, time) => sum + time, 0);
         const yearlyTotalTime = Object.values(yearly).reduce((sum, time) => sum + time, 0);
-
-        console.log(`Monthly Totals: ${JSON.stringify(monthly)}`);
-        console.log(`Monthly Total Time: ${monthlyTotalTime}`);
-        console.log(`Yearly Totals: ${JSON.stringify(yearly)}`);
-        console.log(`Yearly Total Time: ${yearlyTotalTime}`);
 
         // Calculate percentages for monthly and yearly data
         const monthlyPercentages = {};
@@ -316,24 +306,16 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             }
         }
 
-        console.log(`Monthly Percentages: ${JSON.stringify(monthlyPercentages)}`);
-        console.log(`Yearly Percentages: ${JSON.stringify(yearlyPercentages)}`);
-
         // Create the result array
         const allEarningTypes = new Set([...Object.keys(monthly), ...Object.keys(yearly)]);
-        const results = Array.from(allEarningTypes).map((type) => ({
+        return Array.from(allEarningTypes).map((type) => ({
             earningType: type,
             monthPercentage: monthlyPercentages[type] || "0.00",
             monthHours: monthly[type] || 0,
             yearPercentage: yearlyPercentages[type] || "0.00",
             yearHours: yearly[type] || 0,
         }));
-
-        console.log(`Results: ${JSON.stringify(results)}`);
-
-        return results;
     };
-
      const earningTypePercentages = calculateEarningTypePercentages();
 
     return (
@@ -483,6 +465,14 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             <div className="summary">
                 <h3>Summary</h3>
                 <p>Entered Hours: {currentlyEnteredHours} / {totalWorkingHours}</p>
+                <div className="mb-3">
+                    {/*<label className="form-label">Select Month</label>*/}
+                    <select className="form-control" value={selectedMonth} onChange={handleMonthChange}>
+                        {months.map((month, index) => (
+                            <option key={index} value={index}>{month}</option>
+                        ))}
+                    </select>
+                </div>
                 <div className="table-container">
                     <table className="table">
                         <thead>
