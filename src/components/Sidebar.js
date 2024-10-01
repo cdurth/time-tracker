@@ -222,7 +222,11 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             setEditEntry(null);
         }
     };
-
+    // Function to parse date without timezone shifting
+    const parseDateWithoutShift = (dateString) => {
+        const parts = dateString.split("-");
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+    };
     const calculateWorkingHours = () => {
         const currentYear = currentDate.getFullYear();
         const startOfMonth = new Date(currentYear, selectedMonth, 1);
@@ -237,7 +241,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         }
 
         const currentlyEnteredHours = entries.reduce((sum, entry) => {
-            const entryDate = new Date(entry.date);
+            const entryDate = parseDateWithoutShift(entry.date);
             return entryDate.getMonth() === selectedMonth && entryDate.getFullYear() === currentYear
                 ? sum + parseFloat(entry.timeSpent || 0)
                 : sum;
@@ -247,6 +251,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     };
 
     const { currentlyEnteredHours, totalWorkingHours } = calculateWorkingHours();
+
 
     const calculateEarningTypePercentages = () => {
         if (entries.length === 0) return [];
@@ -260,12 +265,6 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         // Function to add time to a dictionary
         const addTimeToDictionary = (dict, earningType, timeSpent) => {
             dict[earningType] = (dict[earningType] || 0) + parseFloat(timeSpent);
-        };
-
-        // Function to parse date without timezone shifting
-        const parseDateWithoutShift = (dateString) => {
-            const parts = dateString.split("-");
-            return new Date(parts[0], parts[1] - 1, parts[2]);
         };
 
         // Process all entries
