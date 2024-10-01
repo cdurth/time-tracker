@@ -224,9 +224,9 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     };
 
     const calculateWorkingHours = () => {
-        const currentDate = new Date();
-        const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        const currentYear = currentDate.getFullYear();
+        const startOfMonth = new Date(currentYear, selectedMonth, 1);
+        const endOfMonth = new Date(currentYear, selectedMonth + 1, 0);
 
         let totalWorkingHours = 0;
         for (let day = new Date(startOfMonth); day <= endOfMonth; day.setDate(day.getDate() + 1)) {
@@ -238,7 +238,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
 
         const currentlyEnteredHours = entries.reduce((sum, entry) => {
             const entryDate = new Date(entry.date);
-            return entryDate.getMonth() === currentDate.getMonth() && entryDate.getFullYear() === currentDate.getFullYear()
+            return entryDate.getMonth() === selectedMonth && entryDate.getFullYear() === currentYear
                 ? sum + parseFloat(entry.timeSpent || 0)
                 : sum;
         }, 0);
@@ -313,10 +313,11 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             monthPercentage: monthlyPercentages[type] || "0.00",
             monthHours: monthly[type] || 0,
             yearPercentage: yearlyPercentages[type] || "0.00",
-            yearHours: yearly[type] || 0,
+            yearHours: yearlyPercentages[type] || 0,
         }));
     };
-     const earningTypePercentages = calculateEarningTypePercentages();
+
+    const earningTypePercentages = calculateEarningTypePercentages();
 
     return (
         <div className="sidebar">
@@ -451,9 +452,12 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                                 </div>
                                 <div className="modal-footer">
                                     <button type="button" className="btn btn-secondary"
-                                            onClick={() => setIsModalOpen(false)}>Close
+                                            onClick={() => setIsModalOpen(false)}
+                                    >
+                                        Close
                                     </button>
-                                    <button type="button" className="btn btn-primary" onClick={generateCSV}>Export
+                                    <button type="button" className="btn btn-primary" onClick={generateCSV}>
+                                        Export
                                     </button>
                                 </div>
                             </div>
@@ -464,41 +468,45 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
 
             <div className="summary">
                 <h3>Summary</h3>
-                <p>Entered Hours: {currentlyEnteredHours} / {totalWorkingHours}</p>
-                <div className="mb-3">
-                    {/*<label className="form-label">Select Month</label>*/}
-                    <select className="form-control" value={selectedMonth} onChange={handleMonthChange}>
+                <div className="month-selection mb-3">
+                    <select className="form-select" value={selectedMonth} onChange={handleMonthChange}>
                         {months.map((month, index) => (
-                            <option key={index} value={index}>{month}</option>
+                            <option key={index} value={index}>
+                                {month}
+                            </option>
                         ))}
                     </select>
                 </div>
-                <div className="table-container">
-                    <table className="table">
-                        <thead>
-                        <tr>
-                            <th>Earning Type</th>
-                            <th>Monthly %</th>
-                            <th>Yearly %</th>
+                <p>
+                    Entered Hours: {currentlyEnteredHours} / {totalWorkingHours}
+                </p>
+            </div>
+
+            <div className="table-container">
+                <table className="table">
+                    <thead>
+                    <tr>
+                        <th>Earning Type</th>
+                        <th>Monthly %</th>
+                        <th>Yearly %</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {earningTypePercentages.map((entry) => (
+                        <tr key={entry.earningType}>
+                            <td>{entry.earningType}</td>
+                            <td className="tooltip-cell">
+                                {entry.monthPercentage}%
+                                <span className="tooltip-text">{entry.monthHours} hours</span>
+                            </td>
+                            <td className="tooltip-cell">
+                                {entry.yearPercentage}%
+                                <span className="tooltip-text">{entry.yearHours} hours</span>
+                            </td>
                         </tr>
-                        </thead>
-                        <tbody>
-                        {earningTypePercentages.map((entry) => (
-                            <tr key={entry.earningType}>
-                                <td>{entry.earningType}</td>
-                                <td className="tooltip-cell">
-                                    {entry.monthPercentage}%
-                                    <span className="tooltip-text">{entry.monthHours} hours</span>
-                                </td>
-                                <td className="tooltip-cell">
-                                    {entry.yearPercentage}%
-                                    <span className="tooltip-text">{entry.yearHours} hours</span>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                </div>
+                    ))}
+                    </tbody>
+                </table>
             </div>
             <div className="d-flex justify-content-between">
                 <div className="btn-group" role="group" aria-label="Sidebar actions">
