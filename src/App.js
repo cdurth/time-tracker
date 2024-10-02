@@ -6,6 +6,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import './components/Sidebar.css';
 import './components/TimeEntries.css';
+import './components/Settings.css';
 
 import {
   addTimeEntry,
@@ -102,6 +103,7 @@ const App = () => {
     };
   }, []);
 
+
   const handleInstallClick = () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -147,7 +149,7 @@ const App = () => {
                 <Settings
                     settingsData={settingsData}
                     saveSettings={saveSettings}
-                    closeSettings={toggleSettings} // Close the Settings component when toggling
+                    closeSettings={toggleSettings}
                 />
               </div>
           )}

@@ -1,0 +1,20 @@
+.settings .settings-form {
+    display: flex;
+}
+
+.settings-left-column {
+    margin-right: 20px;
+    width: 60%;
+}
+
+.settings-right-column {
+    width: 40%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.settings-right-column .btn {
+    margin-bottom: 10px;
+}

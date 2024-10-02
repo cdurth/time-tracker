@@ -1,4 +1,4 @@
-import {openDB} from 'idb';
+import { openDB } from 'idb';
 
 const DB_NAME = 'mwaTimeEntryDB';
 const DB_VERSION = 1;
@@ -21,17 +21,25 @@ const initializeDB = async () => {
 // Import/Export Data
 export const importData = async (data) => {
     const db = await initializeDB();
-    await db.put(STORE_NAMES.PROJECT_CODES, data.projectCodes);
-    await db.put(STORE_NAMES.PROJECT_TASKS, data.projectTasks);
+    const tx = db.transaction([STORE_NAMES.PROJECT_CODES, STORE_NAMES.PROJECT_TASKS, STORE_NAMES.TIME_ENTRIES], 'readwrite');
+
+    await Promise.all([
+        data.projectCodes.map(code => tx.objectStore(STORE_NAMES.PROJECT_CODES).put(code)),
+        data.projectTasks.map(task => tx.objectStore(STORE_NAMES.PROJECT_TASKS).put(task)),
+        data.timeEntries.map(entry => tx.objectStore(STORE_NAMES.TIME_ENTRIES).put(entry)),
+    ]);
+
+    await tx.done;
     console.log('Data imported successfully');
 };
 
 export const exportData = async () => {
     const db = await initializeDB();
-    const tx = db.transaction([STORE_NAMES.PROJECT_CODES, STORE_NAMES.PROJECT_TASKS], 'readonly');
+    const tx = db.transaction([STORE_NAMES.PROJECT_CODES, STORE_NAMES.PROJECT_TASKS, STORE_NAMES.TIME_ENTRIES], 'readonly');
     const projectCodes = await tx.objectStore(STORE_NAMES.PROJECT_CODES).getAll();
     const projectTasks = await tx.objectStore(STORE_NAMES.PROJECT_TASKS).getAll();
-    return { projectCodes, projectTasks };
+    const timeEntries = await tx.objectStore(STORE_NAMES.TIME_ENTRIES).getAll();
+    return { projectCodes, projectTasks, timeEntries };
 };
 
 // Time Entry Operations
@@ -98,4 +106,26 @@ export const getAllProjectTasks = async () => {
 export const deleteProjectTask = async (id) => {
     const db = await initializeDB();
     await db.delete(STORE_NAMES.PROJECT_TASKS, id);
+};
+
+// File Operations
+export const exportDataToFile = async () => {
+    const data = await exportData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'time-entries-export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+};
+
+export const importDataFromFile = async (file) => {
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const data = JSON.parse(event.target.result);
+        await importData(data);
+    };
+    reader.readAsText(file);
 };

@@ -65,7 +65,7 @@ const TimeEntries = ({ entries, setEditEntry, copyEntry, dateInputRef }) => {
         {currentWeekEntries.length === 0 ? (
             <p>No entries for this week.</p>
         ) : (
-            <table className="table table-striped mt-3 no-padding-spacing-table">
+            <table className="table mt-3 no-padding-spacing-table">
               <thead>
               <tr>
                 <th scope="col" className="tooltip-cell">
@@ -126,8 +126,8 @@ const TimeEntries = ({ entries, setEditEntry, copyEntry, dateInputRef }) => {
                                 </td>
                               </tr>
                           ))}
-                          <tr className="summary-row">
-                            <td colSpan="7" className="text-center">
+                          <tr>
+                            <td colSpan="7" className="text-center summary-row">
                               {dayOfWeek}, {formattedDate}: {totalHours.toFixed(2)} total hours
                             </td>
                           </tr>
