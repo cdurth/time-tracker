@@ -312,10 +312,10 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             monthPercentage: monthlyPercentages[type] || "0.00",
             monthHours: monthly[type] || 0,
             yearPercentage: yearlyPercentages[type] || "0.00",
-            yearHours: yearlyPercentages[type] || 0,
+            yearHours: yearly[type] || 0, // Corrected to store actual hours
         }));
     };
-
+    
     const earningTypePercentages = calculateEarningTypePercentages();
 
     return (
