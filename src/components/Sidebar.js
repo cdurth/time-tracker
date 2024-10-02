@@ -482,7 +482,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             </div>
 
             <div className="table-container">
-                <table className="table">
+                <table className="table summary-table">
                     <thead>
                     <tr>
                         <th className="tooltip-cell">
