@@ -24,7 +24,7 @@ const TimeEntries = ({ entries, setEditEntry, copyEntry, dateInputRef }) => {
     endOfWeek.setDate(now.getDate() - now.getDay() + 6 + offset * 7); // Saturday
 
     startOfWeek.setHours(0, 0, 0, 0);
-    endOfWeek.setHours(0, 0, 0, 0);
+    endOfWeek.setHours(23, 59, 59, 999); // Include all of Saturday
 
     return { startOfWeek, endOfWeek };
   };
@@ -32,7 +32,7 @@ const TimeEntries = ({ entries, setEditEntry, copyEntry, dateInputRef }) => {
   const { startOfWeek, endOfWeek } = getWeekRange(weekOffset);
   const currentWeekEntries = entries.filter((entry) => {
     const entryDate = new Date(entry.date + "T00:00:00");
-    return entryDate >= startOfWeek && entryDate < endOfWeek;
+    return entryDate >= startOfWeek && entryDate <= endOfWeek; // Include Saturdays
   });
 
   const entriesByDay = groupEntriesByDay(currentWeekEntries);
