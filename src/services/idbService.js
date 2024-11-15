@@ -1,131 +1,300 @@
-import { openDB } from 'idb';
+import Dexie from 'dexie';
+import { dexieCloud } from 'dexie-cloud-addon';
 
-const DB_NAME = 'mwaTimeEntryDB';
-const DB_VERSION = 1;
-const STORE_NAMES = {
-    PROJECT_CODES: 'project-codes',
-    PROJECT_TASKS: 'project-tasks',
-    TIME_ENTRIES: 'time-entries'
+// Add Dexie Cloud addon
+Dexie.addons.push(dexieCloud);
+
+class TimeEntryDatabase extends Dexie {
+    constructor() {
+        super('mwaTimeEntryDB', { addons: [dexieCloud] });
+
+        // Define schema
+        this.version(1).stores({
+            projectCodes: '@id, code, modifiedAt',
+            projectTasks: '@id, projectCodeId, task, modifiedAt',
+            timeEntries: '@id, date, projectTaskId, startTime, endTime, description, modifiedAt'
+        });
+
+        this.cloud.configure({
+            databaseUrl: 'https://zqewpqxhr.dexie.cloud',
+            allowedOrigins: ['http://localhost:3000', 'http://localhost:5173', window.location.origin],
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': window.location.origin
+            }
+        });
+    }
+}
+
+// Create and export database instance
+const db = new TimeEntryDatabase();
+export { db };
+
+// Initialize database
+export const initializeDB = async () => {
+    try {
+        await db.open();
+        console.log('Database initialized successfully');
+        return db;
+    } catch (error) {
+        console.error('Failed to initialize database:', error);
+        throw error;
+    }
 };
 
-const initializeDB = async () => {
-    return await openDB(DB_NAME, DB_VERSION, {
-        upgrade(db) {
-            db.createObjectStore(STORE_NAMES.PROJECT_CODES, { keyPath: 'id' });
-            db.createObjectStore(STORE_NAMES.PROJECT_TASKS, { keyPath: 'id' });
-            db.createObjectStore(STORE_NAMES.TIME_ENTRIES, { keyPath: 'id' });
-        }
-    });
+export const signIn = async (email, password) => {
+    try {
+        console.log('Attempting sign in...');
+        const result = await db.cloud.login({
+            email,
+            password
+        });
+        console.log('Sign in result:', result);
+        return result;
+    } catch (error) {
+        console.error('Sign in failed:', error);
+        throw error;
+    }
 };
 
-// Import/Export Data
-export const importData = async (data) => {
-    const db = await initializeDB();
-    const tx = db.transaction([STORE_NAMES.PROJECT_CODES, STORE_NAMES.PROJECT_TASKS, STORE_NAMES.TIME_ENTRIES], 'readwrite');
-
-    await Promise.all([
-        data.projectCodes.map(code => tx.objectStore(STORE_NAMES.PROJECT_CODES).put(code)),
-        data.projectTasks.map(task => tx.objectStore(STORE_NAMES.PROJECT_TASKS).put(task)),
-        data.timeEntries.map(entry => tx.objectStore(STORE_NAMES.TIME_ENTRIES).put(entry)),
-    ]);
-
-    await tx.done;
-    console.log('Data imported successfully');
+export const signUp = async (email, password) => {
+    try {
+        const result = await db.cloud.login({
+            email,
+            password,
+            createIfNotExists: true
+        });
+        return result;
+    } catch (error) {
+        console.error('Sign up failed:', error);
+        throw error;
+    }
 };
 
-export const exportData = async () => {
-    const db = await initializeDB();
-    const tx = db.transaction([STORE_NAMES.PROJECT_CODES, STORE_NAMES.PROJECT_TASKS, STORE_NAMES.TIME_ENTRIES], 'readonly');
-    const projectCodes = await tx.objectStore(STORE_NAMES.PROJECT_CODES).getAll();
-    const projectTasks = await tx.objectStore(STORE_NAMES.PROJECT_TASKS).getAll();
-    const timeEntries = await tx.objectStore(STORE_NAMES.TIME_ENTRIES).getAll();
-    return { projectCodes, projectTasks, timeEntries };
+export const signOut = async () => {
+    try {
+        await db.cloud.logout();
+    } catch (error) {
+        console.error('Sign out failed:', error);
+        throw error;
+    }
 };
 
-// Time Entry Operations
-export const addTimeEntry = async (timeEntry) => {
-    const db = await initializeDB();
-    await db.put(STORE_NAMES.TIME_ENTRIES, timeEntry);
-};
-
-export const getTimeEntries = async () => {
-    const db = await initializeDB();
-    return await db.getAll(STORE_NAMES.TIME_ENTRIES);
-};
-
-export const updateTimeEntry = async (timeEntry) => {
-    const db = await initializeDB();
-    await db.put(STORE_NAMES.TIME_ENTRIES, timeEntry);
-};
-
-export const deleteTimeEntry = async (id) => {
-    const db = await initializeDB();
-    await db.delete(STORE_NAMES.TIME_ENTRIES, id);
+export const checkCurrentUser = async () => {
+    const user = await db.cloud.currentUser;
+    console.log('Current user check:', user);
+    return user;
 };
 
 // Project Code Operations
 export const addProjectCode = async (projectCode) => {
-    const db = await initializeDB();
-    await db.put(STORE_NAMES.PROJECT_CODES, projectCode);
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) throw new Error('Not authenticated');
+
+        return await db.projectCodes.add({
+            ...projectCode,
+            modifiedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error adding project code:', error);
+        throw error;
+    }
 };
 
 export const getProjectCodes = async () => {
-    const db = await initializeDB();
-    return await db.getAll(STORE_NAMES.PROJECT_CODES);
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) return [];
+
+        return await db.projectCodes.toArray();
+    } catch (error) {
+        console.error('Error getting project codes:', error);
+        return [];
+    }
 };
 
 // Project Task Operations
 export const addProjectTask = async (projectTask) => {
-    const db = await initializeDB();
-    await db.put(STORE_NAMES.PROJECT_TASKS, projectTask);
-};
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) throw new Error('Not authenticated');
 
-export const getProjectTasksByCode = async (projectCode) => {
-    const projectCodes = await getProjectCodes();
-    const projectCodeObj = projectCodes.find(pc => pc.code === projectCode);
-    if (!projectCodeObj) {
-        console.error("No project found with code:", projectCode);
-        return [];
+        return await db.projectTasks.add({
+            ...projectTask,
+            modifiedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error adding project task:', error);
+        throw error;
     }
-    const { id: projectCodeId } = projectCodeObj;
-    const db = await initializeDB();
-    const tasks = await db.getAll(STORE_NAMES.PROJECT_TASKS);
-    return tasks.filter(task => task.projectCodeId === projectCodeId);
 };
 
 export const getProjectTasksByCodeId = async (projectCodeId) => {
-    const db = await initializeDB();
-    const tasks = await db.getAll(STORE_NAMES.PROJECT_TASKS);
-    return tasks.filter(task => task.projectCodeId === projectCodeId);
-}
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) return [];
+
+        return await db.projectTasks
+            .where('projectCodeId')
+            .equals(projectCodeId)
+            .toArray();
+    } catch (error) {
+        console.error('Error getting project tasks:', error);
+        return [];
+    }
+};
+
 export const getAllProjectTasks = async () => {
-    const db = await initializeDB();
-    return await db.getAll(STORE_NAMES.PROJECT_TASKS);
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) return [];
+
+        return await db.projectTasks.toArray();
+    } catch (error) {
+        console.error('Error getting all project tasks:', error);
+        return [];
+    }
 };
 
 export const deleteProjectTask = async (id) => {
-    const db = await initializeDB();
-    await db.delete(STORE_NAMES.PROJECT_TASKS, id);
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) throw new Error('Not authenticated');
+
+        return await db.projectTasks.delete(id);
+    } catch (error) {
+        console.error('Error deleting project task:', error);
+        throw error;
+    }
 };
 
-// File Operations
-export const exportDataToFile = async () => {
-    const data = await exportData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+// Time Entry Operations
+export const addTimeEntry = async (timeEntry) => {
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) throw new Error('Not authenticated');
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'time-entries-export.json';
-    a.click();
-    URL.revokeObjectURL(url);
+        return await db.timeEntries.add({
+            ...timeEntry,
+            modifiedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error adding time entry:', error);
+        throw error;
+    }
+};
+
+export const getTimeEntries = async () => {
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) return [];
+
+        return await db.timeEntries.toArray();
+    } catch (error) {
+        console.error('Error getting time entries:', error);
+        return [];
+    }
+};
+
+export const updateTimeEntry = async (timeEntry) => {
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) throw new Error('Not authenticated');
+
+        return await db.timeEntries.put({
+            ...timeEntry,
+            modifiedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error updating time entry:', error);
+        throw error;
+    }
+};
+
+export const deleteTimeEntry = async (id) => {
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) throw new Error('Not authenticated');
+
+        return await db.timeEntries.delete(id);
+    } catch (error) {
+        console.error('Error deleting time entry:', error);
+        throw error;
+    }
+};
+
+// Import/Export Operations
+export const exportData = async () => {
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) throw new Error('Not authenticated');
+
+        return {
+            projectCodes: await getProjectCodes(),
+            projectTasks: await getAllProjectTasks(),
+            timeEntries: await getTimeEntries()
+        };
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        throw error;
+    }
+};
+
+export const importData = async (data) => {
+    try {
+        const currentUser = await db.cloud.currentUser;
+        if (!currentUser) throw new Error('Not authenticated');
+
+        await db.transaction('rw', 
+            [db.projectCodes, db.projectTasks, db.timeEntries], 
+            async () => {
+                await Promise.all([
+                    db.projectCodes.bulkPut(data.projectCodes.map(code => ({
+                        ...code,
+                        modifiedAt: new Date().toISOString()
+                    }))),
+                    db.projectTasks.bulkPut(data.projectTasks.map(task => ({
+                        ...task,
+                        modifiedAt: new Date().toISOString()
+                    }))),
+                    db.timeEntries.bulkPut(data.timeEntries.map(entry => ({
+                        ...entry,
+                        modifiedAt: new Date().toISOString()
+                    })))
+                ]);
+        });
+    } catch (error) {
+        console.error('Error importing data:', error);
+        throw error;
+    }
+};
+
+export const exportDataToFile = async () => {
+    try {
+        const data = await exportData();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'time-entries-export.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error exporting data to file:', error);
+        throw error;
+    }
 };
 
 export const importDataFromFile = async (file) => {
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-        const data = JSON.parse(event.target.result);
+    try {
+        const text = await file.text();
+        const data = JSON.parse(text);
         await importData(data);
-    };
-    reader.readAsText(file);
+    } catch (error) {
+        console.error('Error importing data from file:', error);
+        throw new Error('Failed to import data. Please check the file format.');
+    }
 };

@@ -1,12 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useObservable } from "dexie-react-hooks";
 import Papa from 'papaparse';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
-import { getProjectCodes, getProjectTasksByCode } from '../services/idbService';
+import { 
+    getProjectCodes, 
+    getProjectTasksByCodeId,
+    db
+} from '../services/idbService';
 
 const validEarningTypes = ['RG', 'PB', 'DT', 'NB', 'SD', 'DR', 'DN', 'NT', 'AT', 'MK', 'AC', 'IT', 'TR', 'TC', 'TH', 'HO', 'PT'];
 
-const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copyEntry, dateInputRef, deleteEntry, toggleSettings }) => {
+const Sidebar = ({ 
+    addEntry, 
+    entries, 
+    setEditEntry, 
+    editEntry, 
+    updateEntry, 
+    copyEntry, 
+    dateInputRef, 
+    deleteEntry, 
+    toggleSettings,
+    onSignOut 
+}) => {
+    // Get user from Dexie observable
+    const user = useObservable(db.cloud.currentUser);
+
     // State declarations
     const [formData, setFormData] = useState({
         id: null,
@@ -18,10 +37,9 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         description: ""
     });
 
-    // Define the months
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const currentDate = new Date();
-    const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth()); // Default to the current month
+    const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
     const [projectCodes, setProjectCodes] = useState([]);
     const [projectTasks, setProjectTasks] = useState([]);
     const projectCodeRef = useRef(null);
@@ -34,18 +52,19 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     const [earningTypeInvalid, setEarningTypeInvalid] = useState(false);
     const [projectTaskInvalid, setProjectTaskInvalid] = useState(false);
     const [tasksLoading, setTasksLoading] = useState(false);
-
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
     useEffect(() => {
         async function loadProjectCodes() {
-            const codes = await getProjectCodes();
-            setProjectCodes(codes);
+            if (user) {
+                const codes = await getProjectCodes();
+                setProjectCodes(codes);
+            }
         }
         loadProjectCodes();
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         if (editEntry) {
@@ -58,9 +77,18 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
 
     const loadProjectTasks = async (projectCode) => {
         setTasksLoading(true);
-        const tasks = await getProjectTasksByCode(projectCode);
-        setProjectTasks(tasks);
-        setFilteredProjectTasks(tasks);
+        const projectCodeObj = projectCodes.find(
+            code => code.code.toLowerCase() === projectCode.toLowerCase()
+        );
+        
+        if (projectCodeObj) {
+            const tasks = await getProjectTasksByCodeId(projectCodeObj.id);
+            setProjectTasks(tasks);
+            setFilteredProjectTasks(tasks);
+        } else {
+            setProjectTasks([]);
+            setFilteredProjectTasks([]);
+        }
         setTasksLoading(false);
     };
 
@@ -81,6 +109,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         let updatedValue = value;
+
         if (name === 'earningType') {
             updatedValue = value.toUpperCase();
             const filteredTypes = validEarningTypes.filter((type) => type.startsWith(updatedValue));
@@ -94,7 +123,7 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             );
             setFilteredProjectCodes(filteredCodes.map(codeObj => codeObj.code));
             setProjectCodeInvalid(!filteredCodes.some(codeObj => codeObj.code.toLowerCase() === updatedValue.toLowerCase()));
-            setFormData({ ...formData, projectTask: "" });
+            setFormData(prev => ({ ...prev, projectTask: "" }));
             loadProjectTasks(updatedValue);
         }
 
@@ -106,29 +135,33 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             setProjectTaskInvalid(!projectTasks.some(task => task.task.toLowerCase() === updatedValue.toLowerCase()));
         }
 
-        setFormData({ ...formData, [name]: updatedValue });
+        setFormData(prev => ({ ...prev, [name]: updatedValue }));
     };
 
     const handleInputBlur = (e) => {
         const { name } = e.target;
 
         if (name === 'earningType' && !validEarningTypes.includes(formData.earningType)) {
-            setFormData((prevData) => ({ ...prevData, earningType: "" }));
+            setFormData(prev => ({ ...prev, earningType: "" }));
             setEarningTypeInvalid(true);
         }
 
         if (name === 'projectCode') {
-            const isValidProjectCode = projectCodes.some(codeObj => codeObj.code.toLowerCase() === formData.projectCode.toLowerCase());
+            const isValidProjectCode = projectCodes.some(codeObj => 
+                codeObj.code.toLowerCase() === formData.projectCode.toLowerCase()
+            );
             if (!isValidProjectCode) {
-                setFormData((prevData) => ({ ...prevData, projectCode: "" }));
+                setFormData(prev => ({ ...prev, projectCode: "" }));
                 setProjectCodeInvalid(true);
             }
         }
 
         if (name === 'projectTask') {
-            const isValidTask = projectTasks.some(task => task.task.toLowerCase() === formData.projectTask.toLowerCase());
+            const isValidTask = projectTasks.some(task => 
+                task.task.toLowerCase() === formData.projectTask.toLowerCase()
+            );
             if (!isValidTask) {
-                setFormData((prevData) => ({ ...prevData, projectTask: "" }));
+                setFormData(prev => ({ ...prev, projectTask: "" }));
                 setProjectTaskInvalid(true);
             } else {
                 setProjectTaskInvalid(false);
@@ -149,7 +182,8 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     const handleFormSubmit = (e) => {
         e.preventDefault();
 
-        if (!formData.projectCode || !formData.projectTask || !formData.earningType || !formData.date || !formData.timeSpent || !formData.description) {
+        if (!formData.projectCode || !formData.projectTask || !formData.earningType || 
+            !formData.date || !formData.timeSpent || !formData.description) {
             setError("Please fill out all fields correctly.");
             return;
         } else {
@@ -169,10 +203,10 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
 
     const handleEditCancel = () => {
         setEditEntry(null);
+        resetFormData();
         projectCodeRef.current.focus();
-    }
+    };
 
-    // Handle month change
     const handleMonthChange = (e) => {
         setSelectedMonth(parseInt(e.target.value));
     };
@@ -182,6 +216,11 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
     };
 
     const generateCSV = () => {
+        if (!startDate || !endDate) {
+            alert('Please select both start and end dates');
+            return;
+        }
+
         const filteredEntries = entries.filter((entry) => {
             const entryDate = new Date(entry.date);
             return entryDate >= new Date(startDate) && entryDate <= new Date(endDate);
@@ -198,18 +237,17 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
 
         const csv = Papa.unparse(csvData);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement("a");
         link.href = url;
         link.setAttribute("download", `time_entries_${startDate}_to_${endDate}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
         setIsModalOpen(false);
-        resetModalDates();
-    };
-
-    const resetModalDates = () => {
         setStartDate("");
         setEndDate("");
     };
@@ -222,11 +260,12 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             setEditEntry(null);
         }
     };
-    // Function to parse date without timezone shifting
+
     const parseDateWithoutShift = (dateString) => {
         const parts = dateString.split("-");
         return new Date(parts[0], parts[1] - 1, parts[2]);
     };
+
     const calculateWorkingHours = () => {
         const currentYear = currentDate.getFullYear();
         const startOfMonth = new Date(currentYear, selectedMonth, 1);
@@ -250,46 +289,35 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
         return { currentlyEnteredHours, totalWorkingHours };
     };
 
-    const { currentlyEnteredHours, totalWorkingHours } = calculateWorkingHours();
-
-
     const calculateEarningTypePercentages = () => {
         if (entries.length === 0) return [];
 
         const currentYear = currentDate.getFullYear();
-
-        // Initialize containers for monthly and yearly aggregates
         const monthly = {};
         const yearly = {};
 
-        // Function to add time to a dictionary
         const addTimeToDictionary = (dict, earningType, timeSpent) => {
             dict[earningType] = (dict[earningType] || 0) + parseFloat(timeSpent);
         };
 
-        // Process all entries
         entries.forEach((entry) => {
             const { earningType, date, timeSpent } = entry;
             const entryDate = parseDateWithoutShift(date);
             const entryYear = entryDate.getFullYear();
             const entryMonth = entryDate.getMonth();
 
-            // Accumulate time for selected month entries
             if (entryYear === currentYear && entryMonth === selectedMonth) {
                 addTimeToDictionary(monthly, earningType, timeSpent);
             }
 
-            // Accumulate time for current year entries
             if (entryYear === currentYear) {
                 addTimeToDictionary(yearly, earningType, timeSpent);
             }
         });
 
-        // Calculate total monthly and yearly times
         const monthlyTotalTime = Object.values(monthly).reduce((sum, time) => sum + time, 0);
         const yearlyTotalTime = Object.values(yearly).reduce((sum, time) => sum + time, 0);
 
-        // Calculate percentages for monthly and yearly data
         const monthlyPercentages = {};
         const yearlyPercentages = {};
 
@@ -305,23 +333,38 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
             }
         }
 
-        // Create the result array
         const allEarningTypes = new Set([...Object.keys(monthly), ...Object.keys(yearly)]);
         return Array.from(allEarningTypes).map((type) => ({
             earningType: type,
             monthPercentage: monthlyPercentages[type] || "0.00",
             monthHours: monthly[type] || 0,
             yearPercentage: yearlyPercentages[type] || "0.00",
-            yearHours: yearly[type] || 0, // Corrected to store actual hours
+            yearHours: yearly[type] || 0,
         }));
     };
-    
+
+    const { currentlyEnteredHours, totalWorkingHours } = calculateWorkingHours();
     const earningTypePercentages = calculateEarningTypePercentages();
 
     return (
         <div className="sidebar">
+            {user && user.userId !== "unauthorized" && (
+                <div className="user-info mb-3">
+                    <div className="d-flex justify-content-between align-items-center">
+                        <span>{user.email}</span>
+                        <button 
+                            className="btn btn-outline-danger btn-sm" 
+                            onClick={onSignOut}
+                        >
+                            Sign Out
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <h2>{editEntry ? "Edit Time Entry" : "Add Time Entry"}</h2>
             {error && <div className="alert alert-danger">{error}</div>}
+
             <form onSubmit={handleFormSubmit}>
                 <div className="mb-3">
                     <label className="form-label">Project Code</label>
@@ -342,193 +385,279 @@ const Sidebar = ({ addEntry, entries, setEditEntry, editEntry, updateEntry, copy
                     {focusedField === 'projectCode' && filteredProjectCodes.length > 0 && (
                         <ul className="list-group">
                             {filteredProjectCodes.map((code) => (
-                                <li key={code} className="list-group-item"
-                                    onClick={() => handleInputChange({target: {name: 'projectCode', value: code}})}>
+                                <li 
+                                    key={code} 
+                                    className="list-group-item"
+                                    onClick={() => handleInputChange({
+                                        target: {name: 'projectCode', value: code}
+                                    })}
+                                >
                                     {code}
                                 </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-                <div className="mb-3">
-                    <label className="form-label">Project Task</label>
-                    <input
-                        type="text"
-                        name="projectTask"
-                        className={`form-control ${!focusedField && !tasksLoading && projectTaskInvalid ? 'is-invalid' : ''}`}
-                        value={formData.projectTask}
-                        onChange={handleInputChange}
-                        onBlur={handleInputBlur}
-                        onFocus={handleInputFocus}
-                        required
-                        autoComplete="off"
-                        disabled={!formData.projectCode}
-                    />
-                    {!focusedField && !tasksLoading && projectTaskInvalid &&
-                        <div className="invalid-feedback">Invalid project task.</div>}
-                    {focusedField === 'projectTask' && filteredProjectTasks.length > 0 && (
-                        <ul className="list-group">
-                            {filteredProjectTasks.map((task) => (
-                                <li key={task.id} className="list-group-item" onClick={() => handleInputChange({
-                                    target: {
-                                        name: 'projectTask',
-                                        value: task.task
-                                    }
-                                })}>
-                                    {task.task}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-                <div className="mb-3">
-                    <label className="form-label">Earning Type</label>
-                    <input
-                        type="text"
-                        name="earningType"
-                        className={`form-control ${!focusedField && earningTypeInvalid ? 'is-invalid' : ''}`}
-                        value={formData.earningType}
-                        onChange={handleInputChange}
-                        onBlur={handleInputBlur}
-                        onFocus={handleInputFocus}
-                        required
-                        autoComplete="off"
-                    />
-                    {!focusedField && earningTypeInvalid &&
-                        <div className="invalid-feedback">Invalid earning type.</div>}
-                    {focusedField === 'earningType' && filteredEarningTypes.length > 0 && (
-                        <ul className="list-group">
-                            {filteredEarningTypes.map((type) => (
-                                <li key={type} className="list-group-item"
-                                    onClick={() => handleInputChange({target: {name: 'earningType', value: type}})}>
-                                    {type}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-                <div className="mb-3">
-                    <label className="form-label">Date</label>
-                    <input type="date" name="date" className="form-control" value={formData.date}
-                           onChange={handleInputChange} ref={dateInputRef} required/>
-                </div>
-                <div className="mb-3">
-                    <label className="form-label">Time Spent (hours)</label>
-                    <input type="number" name="timeSpent" className="form-control" value={formData.timeSpent}
-                           onChange={handleInputChange} required/>
-                </div>
-                <div className="mb-3">
-                    <label className="form-label">Description</label>
-                    <textarea name="description" className="form-control" value={formData.description}
-                              onChange={handleInputChange} required/>
-                </div>
-                <button type="submit" className="btn btn-primary">{editEntry ? "Update Entry" : "Add Entry"}</button>
-                {editEntry && (
-                    <button type="button" onClick={deleteExistingEntry} className="btn btn-danger">Delete Entry</button>
-                )}
-                {editEntry && (
-                    <button type="button" className="btn btn-light" onClick={handleEditCancel}>Cancel Edit</button>
-                )}
-            </form>
-
-            {isModalOpen && (
-                <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-                    <div className="modal show" style={{display: 'block'}} onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-dialog">
-                            <div className="modal-content">
-                                <div className="modal-header">
-                                    <h5 className="modal-title dark">Export Time Entries</h5>
-                                    <button type="button" className="btn-close"
-                                            onClick={() => setIsModalOpen(false)}></button>
-                                </div>
-                                <div className="modal-body">
-                                    <label className="form-label dark">Start Date</label>
-                                    <input type="date" className="form-control" value={startDate}
-                                           onChange={(e) => setStartDate(e.target.value)} required/>
-                                    <label className="form-label dark">End Date</label>
-                                    <input type="date" className="form-control" value={endDate}
-                                           onChange={(e) => setEndDate(e.target.value)} required/>
-                                </div>
-                                <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary"
-                                            onClick={() => setIsModalOpen(false)}
+                                ))}
+                                </ul>
+                            )}
+                        </div>
+        
+                        <div className="mb-3">
+                            <label className="form-label">Project Task</label>
+                            <input
+                                type="text"
+                                name="projectTask"
+                                className={`form-control ${!focusedField && !tasksLoading && projectTaskInvalid ? 'is-invalid' : ''}`}
+                                value={formData.projectTask}
+                                onChange={handleInputChange}
+                                onBlur={handleInputBlur}
+                                onFocus={handleInputFocus}
+                                required
+                                autoComplete="off"
+                                disabled={!formData.projectCode}
+                            />
+                            {!focusedField && !tasksLoading && projectTaskInvalid &&
+                                <div className="invalid-feedback">Invalid project task.</div>}
+                            {focusedField === 'projectTask' && filteredProjectTasks.length > 0 && (
+                                <ul className="list-group">
+                                    {filteredProjectTasks.map((task) => (
+                                        <li 
+                                            key={task.id} 
+                                            className="list-group-item"
+                                            onClick={() => handleInputChange({
+                                                target: {name: 'projectTask', value: task.task}
+                                            })}
+                                        >
+                                            {task.task}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+        
+                        <div className="mb-3">
+                            <label className="form-label">Earning Type</label>
+                            <input
+                                type="text"
+                                name="earningType"
+                                className={`form-control ${!focusedField && earningTypeInvalid ? 'is-invalid' : ''}`}
+                                value={formData.earningType}
+                                onChange={handleInputChange}
+                                onBlur={handleInputBlur}
+                                onFocus={handleInputFocus}
+                                required
+                                autoComplete="off"
+                            />
+                            {!focusedField && earningTypeInvalid &&
+                                <div className="invalid-feedback">Invalid earning type.</div>}
+                            {focusedField === 'earningType' && filteredEarningTypes.length > 0 && (
+                                <ul className="list-group">
+                                    {filteredEarningTypes.map((type) => (
+                                        <li 
+                                            key={type} 
+                                            className="list-group-item"
+                                            onClick={() => handleInputChange({
+                                                target: {name: 'earningType', value: type}
+                                            })}
+                                        >
+                                            {type}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+        
+                        <div className="mb-3">
+                            <label className="form-label">Date</label>
+                            <input 
+                                type="date" 
+                                name="date" 
+                                className="form-control" 
+                                value={formData.date}
+                                onChange={handleInputChange} 
+                                ref={dateInputRef} 
+                                required
+                            />
+                        </div>
+        
+                        <div className="mb-3">
+                            <label className="form-label">Time Spent (hours)</label>
+                            <input 
+                                type="number" 
+                                name="timeSpent" 
+                                className="form-control" 
+                                value={formData.timeSpent}
+                                onChange={handleInputChange} 
+                                required
+                            />
+                        </div>
+        
+                        <div className="mb-3">
+                            <label className="form-label">Description</label>
+                            <textarea 
+                                name="description" 
+                                className="form-control" 
+                                value={formData.description}
+                                onChange={handleInputChange} 
+                                required
+                            />
+                        </div>
+        
+                        <div className="mb-3">
+                            <button type="submit" className="btn btn-primary me-2">
+                                {editEntry ? "Update Entry" : "Add Entry"}
+                            </button>
+                            {editEntry && (
+                                <>
+                                    <button 
+                                        type="button" 
+                                        onClick={deleteExistingEntry} 
+                                        className="btn btn-danger me-2"
                                     >
-                                        Close
+                                        Delete Entry
                                     </button>
-                                    <button type="button" className="btn btn-primary" onClick={generateCSV}>
-                                        Export
+                                    <button 
+                                        type="button" 
+                                        className="btn btn-light" 
+                                        onClick={handleEditCancel}
+                                    >
+                                        Cancel Edit
                                     </button>
+                                </>
+                            )}
+                        </div>
+                    </form>
+        
+                    <div className="summary mt-4">
+                        <h3>Summary</h3>
+                        <div className="month-selection mb-3">
+                            <select 
+                                className="form-select" 
+                                value={selectedMonth} 
+                                onChange={handleMonthChange}
+                            >
+                                {months.map((month, index) => (
+                                    <option key={index} value={index}>
+                                        {month}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <p>
+                            Entered Hours: {currentlyEnteredHours} / {totalWorkingHours}
+                        </p>
+                    </div>
+        
+                    <div className="table-container">
+                        <table className="table summary-table">
+                            <thead>
+                                <tr>
+                                    <th className="tooltip-cell">
+                                        ET
+                                        <span className="tooltip-text">Earning Type</span>
+                                    </th>
+                                    <th>Monthly %</th>
+                                    <th>Yearly %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {earningTypePercentages.map((entry) => (
+                                    <tr key={entry.earningType}>
+                                        <td>{entry.earningType}</td>
+                                        <td className="tooltip-cell">
+                                            {entry.monthPercentage}%
+                                            <span className="tooltip-text">{entry.monthHours} hours</span>
+                                        </td>
+                                        <td className="tooltip-cell">
+                                            {entry.yearPercentage}%
+                                            <span className="tooltip-text">{entry.yearHours} hours</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+        
+                    <div className="d-flex justify-content-between mt-3">
+                        <div className="btn-group" role="group" aria-label="Sidebar actions">
+                            <button 
+                                type="button" 
+                                className="btn btn-success tooltip-cell" 
+                                onClick={() => window.location.reload()}
+                            >
+                                <i className="bi bi-arrow-clockwise"></i>
+                                <span className="tooltip-text">Reload Page</span>
+                            </button>
+                            <button 
+                                type="button" 
+                                className="btn btn-secondary tooltip-cell" 
+                                onClick={toggleSettings}
+                            >
+                                <i className="bi bi-gear-fill"></i>
+                                <span className="tooltip-text">Settings</span>
+                            </button>
+                            <button 
+                                type="button" 
+                                className="btn btn-info tooltip-cell" 
+                                onClick={exportToCSV}
+                            >
+                                <i className="bi bi-download"></i>
+                                <span className="tooltip-text">Export CSV</span>
+                            </button>
+                        </div>
+                    </div>
+        
+                    {isModalOpen && (
+                        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+                            <div className="modal show" style={{display: 'block'}} onClick={e => e.stopPropagation()}>
+                                <div className="modal-dialog">
+                                    <div className="modal-content">
+                                        <div className="modal-header">
+                                            <h5 className="modal-title dark">Export Time Entries</h5>
+                                            <button 
+                                                type="button" 
+                                                className="btn-close" 
+                                                onClick={() => setIsModalOpen(false)}
+                                            ></button>
+                                        </div>
+                                        <div className="modal-body">
+                                            <label className="form-label dark">Start Date</label>
+                                            <input 
+                                                type="date" 
+                                                className="form-control" 
+                                                value={startDate}
+                                                onChange={(e) => setStartDate(e.target.value)} 
+                                                required
+                                            />
+                                            <label className="form-label dark">End Date</label>
+                                            <input 
+                                                type="date" 
+                                                className="form-control" 
+                                                value={endDate}
+                                                onChange={(e) => setEndDate(e.target.value)} 
+                                                required
+                                            />
+                                        </div>
+                                        <div className="modal-footer">
+                                            <button 
+                                                type="button" 
+                                                className="btn btn-secondary"
+                                                onClick={() => setIsModalOpen(false)}
+                                            >
+                                                Close
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                className="btn btn-primary" 
+                                                onClick={generateCSV}
+                                            >
+                                                Export
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
-
-            <div className="summary">
-                <h3>Summary</h3>
-                <div className="month-selection mb-3">
-                    <select className="form-select" value={selectedMonth} onChange={handleMonthChange}>
-                        {months.map((month, index) => (
-                            <option key={index} value={index}>
-                                {month}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <p>
-                    Entered Hours: {currentlyEnteredHours} / {totalWorkingHours}
-                </p>
-            </div>
-
-            <div className="table-container">
-                <table className="table summary-table">
-                    <thead>
-                    <tr>
-                        <th className="tooltip-cell">
-                            ET
-                            <span className="tooltip-text">Earning Type</span>
-                        </th>
-                        <th>Monthly %</th>
-                        <th>Yearly %</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {earningTypePercentages.map((entry) => (
-                        <tr key={entry.earningType}>
-                            <td>{entry.earningType}</td>
-                            <td className="tooltip-cell">
-                                {entry.monthPercentage}%
-                                <span className="tooltip-text">{entry.monthHours} hours</span>
-                            </td>
-                            <td className="tooltip-cell">
-                                {entry.yearPercentage}%
-                                <span className="tooltip-text">{entry.yearHours} hours</span>
-                            </td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-            </div>
-            <div className="d-flex justify-content-between">
-                <div className="btn-group" role="group" aria-label="Sidebar actions">
-
-                    <button type="button" className="btn btn-success tooltip-cell" onClick={() => window.location.reload()}>
-                        <i className="bi bi-arrow-clockwise"></i>
-                        <span className="tooltip-text">Reload Page</span>
-                    </button>
-                    <button type="button" className="btn btn-secondary tooltip-cell" onClick={toggleSettings}>
-                        <i className="bi bi-gear-fill"></i>
-                        <span className="tooltip-text">Settings</span>
-                    </button>
-                    <button type="button" className="btn btn-info tooltip-cell" onClick={exportToCSV}>
-                        <i className="bi bi-download"></i>
-                        <span className="tooltip-text">Export CSV</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export default Sidebar;
+            );
+        };
+        
+        export default Sidebar;
