@@ -21,17 +21,17 @@ import './components/TimeEntries.css';
 import './components/Settings.css';
 
 const App = () => {
-const user = useLiveQuery(async () => {
-  const currentUser = await db.cloud.currentUser;
-  console.log('Current user:', currentUser); // Debug log
-  
-  // Return null if user is unauthorized or doesn't exist
-  if (!currentUser || currentUser.userId === "unauthorized" || currentUser.name === "Unauthorized") {
+  const user = useLiveQuery(async () => {
+    const currentUser = await db.cloud.currentUser;
+    console.log('Current user:', currentUser);
+    
+    if (!currentUser || currentUser.userId === "unauthorized" || currentUser.name === "Unauthorized") {
       return null;
-  }
-  
-  return currentUser;
-});
+    }
+    
+    return currentUser;
+  });
+
   const [entries, setEntries] = useState([]);
   const [editEntry, setEditEntry] = useState(null);
   const [newEntry, setNewEntry] = useState({
@@ -69,11 +69,11 @@ const user = useLiveQuery(async () => {
 
   const addEntry = async (entry) => {
     if (!user) return;
-    const timeEntryWithID = { ...entry, id: crypto.randomUUID() };
-    await addTimeEntry(timeEntryWithID);
+    // Don't generate an ID, let Dexie handle it
+    await addTimeEntry(entry);
     const updatedEntries = await getTimeEntries();
     setEntries(updatedEntries);
-  };
+};
 
   const updateEntry = async (updatedEntry) => {
     if (!user) return;
@@ -199,7 +199,8 @@ const user = useLiveQuery(async () => {
                   throw error;
                 }
               }}
-              authMode={true}  // This needs to be true when no user is authenticated
+              onSignOut={handleSignOut}
+              authMode={true}
             />
           </div>
         </div>
@@ -242,6 +243,22 @@ const user = useLiveQuery(async () => {
               saveSettings={saveSettings}
               closeSettings={toggleSettings}
               user={user}
+              onSignIn={async (email, password) => {
+                try {
+                  await signIn(email, password);
+                } catch (error) {
+                  console.error('Sign in error:', error);
+                  throw error;
+                }
+              }}
+              onSignUp={async (email, password) => {
+                try {
+                  await signUp(email, password);
+                } catch (error) {
+                  console.error('Sign up error:', error);
+                  throw error;
+                }
+              }}
               onSignOut={handleSignOut}
               authMode={false}
             />

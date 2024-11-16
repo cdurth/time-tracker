@@ -181,7 +181,7 @@ const Sidebar = ({
 
     const handleFormSubmit = (e) => {
         e.preventDefault();
-
+    
         if (!formData.projectCode || !formData.projectTask || !formData.earningType || 
             !formData.date || !formData.timeSpent || !formData.description) {
             setError("Please fill out all fields correctly.");
@@ -189,14 +189,23 @@ const Sidebar = ({
         } else {
             setError("");
         }
-
+    
+        const entryData = {
+            projectCode: formData.projectCode,
+            projectTask: formData.projectTask,
+            earningType: formData.earningType,
+            date: formData.date,
+            timeSpent: formData.timeSpent,
+            description: formData.description
+        };
+    
         if (editEntry) {
-            updateEntry(formData);
+            updateEntry({ ...entryData, id: editEntry.id });
             setEditEntry(null);
         } else {
-            addEntry(formData);
+            addEntry(entryData);
         }
-
+    
         resetFormData();
         projectCodeRef.current.focus();
     };

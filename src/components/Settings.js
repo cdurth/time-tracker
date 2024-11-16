@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { BehaviorSubject } from 'rxjs';
 import {
     getProjectCodes,
     addProjectCode,
@@ -14,10 +13,10 @@ const Settings = ({
     settingsData,
     saveSettings,
     closeSettings,
-    user, // Assuming this is a BehaviorSubject
-    signIn,
-    signUp,
-    signOut,
+    user,
+    onSignIn,
+    onSignUp,
+    onSignOut,
     authMode = false
 }) => {
     console.log('Settings Component Props:', {
@@ -44,7 +43,7 @@ const Settings = ({
     const [selectedFile, setSelectedFile] = useState(null);
     const [importMessage, setImportMessage] = useState('');
 
-    console.log('Settings rendered with:', { userValue, authMode }); // Debug log
+    console.log('Settings rendered with:', { userValue, authMode });
 
     useEffect(() => {
         const subscription = user.subscribe((value) => {
@@ -77,9 +76,9 @@ const Settings = ({
         
         try {
             if (isSigningUp) {
-                await signUp(email, password);
+                await onSignUp(email, password);
             } else {
-                await signIn(email, password);
+                await onSignIn(email, password);
             }
             setEmail('');
             setPassword('');
@@ -92,13 +91,14 @@ const Settings = ({
         if (newProjectCode.trim() === '') return;
 
         const newCode = {
-            id: crypto.randomUUID(),
-            code: newProjectCode
+            code: newProjectCode,
+            modifiedAt: new Date().toISOString()
         };
         
         try {
-            await addProjectCode(newCode);
-            setProjectCodes([...projectCodes, newCode]);
+            const id = await addProjectCode(newCode);
+            const addedCode = { ...newCode, id };
+            setProjectCodes([...projectCodes, addedCode]);
             setNewProjectCode('');
         } catch (error) {
             console.error('Error adding project code:', error);
@@ -125,14 +125,15 @@ const Settings = ({
     const handleAddProjectTask = async () => {
         if (selectedProjectCode && newProjectTask.trim() !== '') {
             const newTask = {
-                id: crypto.randomUUID(),
                 projectCodeId: selectedProjectCode,
-                task: newProjectTask
+                task: newProjectTask,
+                modifiedAt: new Date().toISOString()
             };
 
             try {
-                await addProjectTask(newTask);
-                setTasksForSelectedProject([...tasksForSelectedProject, newTask]);
+                const id = await addProjectTask(newTask);
+                const addedTask = { ...newTask, id };
+                setTasksForSelectedProject([...tasksForSelectedProject, addedTask]);
                 setNewProjectTask('');
             } catch (error) {
                 console.error('Error adding project task:', error);
@@ -174,9 +175,7 @@ const Settings = ({
         }
     };
 
-    // Render the appropriate content based on the user's authentication state
     if (!userValue || userValue.userId === "unauthorized" || userValue.name === "Unauthorized") {
-        // Render the authentication form
         return (
             <div className="auth-container p-4 border rounded shadow-sm">
                 <h2 className="text-center mb-4">{isSigningUp ? 'Create Account' : 'Sign In'}</h2>
@@ -228,149 +227,148 @@ const Settings = ({
                 </form>
             </div>
         );
-    } else {
-        // Render the main settings view
-        return (
-            <div className="settings">
-                <h2>Settings</h2>
-                <div className="settings-container d-flex">
-                    <div className="settings-left-column">
-                        <div className="mb-3">
-                            <h3>Project Codes</h3>
-                            <div className="input-group">
-                                <input
-                                    type="text"
-                                    value={newProjectCode}
-                                    onChange={(e) => setNewProjectCode(e.target.value)}
-                                    placeholder="New Project Code"
-                                    className="form-control"
-                                />
-                                <button 
-                                    type="button" 
-                                    className="btn btn-primary" 
-                                    onClick={handleAddProjectCode}
-                                >
-                                    Add Project Code
-                                </button>
-                            </div>
-                        </div>
+    }
 
-                        <div className="mb-3">
-                            <h3>Project Tasks</h3>
-                            <select 
-                                className="form-select mb-2" 
-                                value={selectedProjectCode} 
-                                onChange={handleSelectProjectCode}
-                            >
-                                <option value="">Select Project Code</option>
-                                {projectCodes.map((code) => (
-                                    <option key={code.id} value={code.id}>
-                                        {code.code}
-                                    </option>
-                                ))}
-                            </select>
-
-                            {selectedProjectCode && (
-                                <div>
-                                    <div className="input-group mb-2">
-                                        <input
-                                            type="text"
-                                            value={newProjectTask}
-                                            onChange={(e) => setNewProjectTask(e.target.value)}
-                                            placeholder="New Project Task"
-                                            className="form-control"
-                                        />
-                                        <button 
-                                            type="button" 
-                                            className="btn btn-primary"
-                                            onClick={handleAddProjectTask}
-                                        >
-                                            Add Task
-                                        </button>
-                                    </div>
-
-                                    <ul className="list-group">
-                                        {tasksForSelectedProject.map((task) => (
-                                            <li key={task.id} className="list-group-item">
-                                                {task.task}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="mb-3 d-flex gap-2">
+    return (
+        <div className="settings">
+            <h2>Settings</h2>
+            <div className="settings-container d-flex">
+                <div className="settings-left-column">
+                    <div className="mb-3">
+                        <h3>Project Codes</h3>
+                        <div className="input-group">
+                            <input
+                                type="text"
+                                value={newProjectCode}
+                                onChange={(e) => setNewProjectCode(e.target.value)}
+                                placeholder="New Project Code"
+                                className="form-control"
+                            />
                             <button 
                                 type="button" 
-                                className="btn btn-secondary" 
-                                onClick={closeSettings}
+                                className="btn btn-primary" 
+                                onClick={handleAddProjectCode}
                             >
-                                Close Settings
+                                Add Project Code
                             </button>
-                            {userValue && userValue.userId !== "unauthorized" && userValue.name !== "Unauthorized" && (
-                                <button
-                                    type="button"
-                                    className="btn btn-danger"
-                                    onClick={signOut}
-                                >
-                                    Sign Out
-                                </button>
-                            )}
                         </div>
                     </div>
 
-                    <div className="settings-right-column">
-                        <h3>Data Management</h3>
-                        <div className="d-flex flex-column gap-2">
-                            <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={handleExportData}
-                            >
-                                Export Database
-                            </button>
+                    <div className="mb-3">
+                        <h3>Project Tasks</h3>
+                        <select 
+                            className="form-select mb-2" 
+                            value={selectedProjectCode} 
+                            onChange={handleSelectProjectCode}
+                        >
+                            <option value="">Select Project Code</option>
+                            {projectCodes.map((code) => (
+                                <option key={code.id} value={code.id}>
+                                    {code.code}
+                                </option>
+                            ))}
+                        </select>
 
-                            <input
-                                type="file"
-                                accept=".json"
-                                style={{ display: 'none' }}
-                                onChange={handleFileChange}
-                                id="import-file-input"
-                            />
-                            <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={() => document.getElementById('import-file-input').click()}
-                            >
-                                Select Import File
-                            </button>
-
-                            {selectedFile && (
-                                <button
-                                    type="button"
-                                    className="btn btn-success"
-                                    onClick={handleImportDataClick}
-                                >
-                                    Import Database
-                                </button>
-                            )}
-
-                            {importMessage && (
-                                <div className={`alert ${
-                                    importMessage.includes('failed') 
-                                        ? 'alert-danger' 
-                                        : 'alert-success'
-                                }`}>
-                                    {importMessage}
+                        {selectedProjectCode && (
+                            <div>
+                                <div className="input-group mb-2">
+                                    <input
+                                        type="text"
+                                        value={newProjectTask}
+                                        onChange={(e) => setNewProjectTask(e.target.value)}
+                                        placeholder="New Project Task"
+                                        className="form-control"
+                                    />
+                                    <button 
+                                        type="button" 
+                                        className="btn btn-primary"
+                                        onClick={handleAddProjectTask}
+                                    >
+                                        Add Task
+                                    </button>
                                 </div>
-                            )}
-                        </div>
+
+                                <ul className="list-group">
+                                    {tasksForSelectedProject.map((task) => (
+                                        <li key={task.id} className="list-group-item">
+                                            {task.task}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="mb-3 d-flex gap-2">
+                        <button 
+                            type="button" 
+                            className="btn btn-secondary" 
+                            onClick={closeSettings}
+                        >
+                            Close Settings
+                        </button>
+                        {userValue && userValue.userId !== "unauthorized" && userValue.name !== "Unauthorized" && (
+                            <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={onSignOut}
+                            >
+                                Sign Out
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="settings-right-column">
+                    <h3>Data Management</h3>
+                    <div className="d-flex flex-column gap-2">
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={handleExportData}
+                        >
+                            Export Database
+                        </button>
+
+                        <input
+                            type="file"
+                            accept=".json"
+                            style={{ display: 'none' }}
+                            onChange={handleFileChange}
+                            id="import-file-input"
+                        />
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => document.getElementById('import-file-input').click()}
+                        >
+                            Select Import File
+                        </button>
+
+                        {selectedFile && (
+                            <button
+                                type="button"
+                                className="btn btn-success"
+                                onClick={handleImportDataClick}
+                            >
+                                Import Database
+                            </button>
+                        )}
+
+                        {importMessage && (
+                            <div className={`alert ${
+                                importMessage.includes('failed') 
+                                    ? 'alert-danger' 
+                                    : 'alert-success'
+                            }`}>
+                                {importMessage}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
-        );
-    }
+        </div>
+    );
 };
 
 export default Settings;

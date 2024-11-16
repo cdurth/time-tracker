@@ -172,18 +172,19 @@ export const deleteProjectTask = async (id) => {
 
 // Time Entry Operations
 export const addTimeEntry = async (timeEntry) => {
-    try {
-        const currentUser = await db.cloud.currentUser;
-        if (!currentUser) throw new Error('Not authenticated');
+    if (!db) throw new Error('Database not initialized');
+    const user = db.cloud.currentUser;
+    if (!user) throw new Error('Not authenticated');
 
-        return await db.timeEntries.add({
-            ...timeEntry,
-            modifiedAt: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Error adding time entry:', error);
-        throw error;
-    }
+    // Remove any id field and let Dexie generate it with correct prefix
+    const { id, ...entryWithoutId } = timeEntry;
+    
+    const entryToAdd = {
+        ...entryWithoutId,
+        modifiedAt: new Date().toISOString()
+    };
+
+    return await db.timeEntries.add(entryToAdd);
 };
 
 export const getTimeEntries = async () => {
