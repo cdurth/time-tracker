@@ -10,9 +10,9 @@ class TimeEntryDatabase extends Dexie {
 
         // Define schema
         this.version(1).stores({
-            projectCodes: '@id, code, modifiedAt',
-            projectTasks: '@id, projectCodeId, task, modifiedAt',
-            timeEntries: '@id, date, projectTaskId, startTime, endTime, description, modifiedAt'
+            projectCodes: 'id, code, modifiedAt',
+            projectTasks: 'id, projectCodeId, task, modifiedAt',
+            timeEntries: 'id, date, projectTaskId, startTime, endTime, description, modifiedAt'
         });
 
         this.cloud.configure({
@@ -244,33 +244,56 @@ export const exportData = async () => {
 };
 
 export const importData = async (data) => {
-    try {
-        const currentUser = await db.cloud.currentUser;
-        if (!currentUser) throw new Error('Not authenticated');
+    if (!db) throw new Error('Database not initialized');
 
-        await db.transaction('rw', 
-            [db.projectCodes, db.projectTasks, db.timeEntries], 
+    try {
+        console.log('Starting import with data:', data);
+
+        await db.transaction('rw',
+            [db.projectCodes, db.projectTasks, db.timeEntries],
             async () => {
+                const projectCodes = data.projectCodes.map(code => ({
+                    id: String(code.id), // Ensure the ID is a string
+                    code: code.code,
+                    modifiedAt: new Date().toISOString()
+                }));
+
+                const projectTasks = data.projectTasks.map(task => ({
+                    id: String(task.id), // Ensure the ID is a string
+                    projectCodeId: String(task.projectCodeId), // Ensure IDs are strings
+                    task: task.task,
+                    modifiedAt: new Date().toISOString()
+                }));
+
+                const timeEntries = data.timeEntries.map(entry => ({
+                    id: String(entry.id), // Ensure the ID is a string
+                    date: entry.date,
+                    projectCode: String(entry.projectCode), // Ensure IDs are strings
+                    projectTask: String(entry.projectTask), // Ensure IDs are strings
+                    earningType: entry.earningType,
+                    timeSpent: entry.timeSpent,
+                    description: entry.description,
+                    modifiedAt: new Date().toISOString()
+                }));
+
+                // Use `bulkPut` for upserts to prevent duplicates
                 await Promise.all([
-                    db.projectCodes.bulkPut(data.projectCodes.map(code => ({
-                        ...code,
-                        modifiedAt: new Date().toISOString()
-                    }))),
-                    db.projectTasks.bulkPut(data.projectTasks.map(task => ({
-                        ...task,
-                        modifiedAt: new Date().toISOString()
-                    }))),
-                    db.timeEntries.bulkPut(data.timeEntries.map(entry => ({
-                        ...entry,
-                        modifiedAt: new Date().toISOString()
-                    })))
+                    db.projectCodes.bulkPut(projectCodes),
+                    db.projectTasks.bulkPut(projectTasks),
+                    db.timeEntries.bulkPut(timeEntries)
                 ]);
-        });
+            }
+        );
+
+        console.log('Import completed successfully');
     } catch (error) {
-        console.error('Error importing data:', error);
+        console.error('Import error:', error);
         throw error;
     }
 };
+
+
+
 
 export const exportDataToFile = async () => {
     try {
@@ -293,9 +316,15 @@ export const importDataFromFile = async (file) => {
     try {
         const text = await file.text();
         const data = JSON.parse(text);
+        
+        // Validate data structure
+        if (!data.projectCodes || !data.projectTasks || !data.timeEntries) {
+            throw new Error('Invalid data structure');
+        }
+
         await importData(data);
     } catch (error) {
-        console.error('Error importing data from file:', error);
-        throw new Error('Failed to import data. Please check the file format.');
+        console.error('Import from file error:', error);
+        throw new Error(`Failed to import data: ${error.message}`);
     }
 };
